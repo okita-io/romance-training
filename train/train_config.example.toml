@@ -1,0 +1,36 @@
+# This is data for train_qwen_unsloth.py — do not run with Python directly.
+# Run from repo root:  python train_qwen_unsloth.py --config train_config.toml
+#
+# Copy to train_config.toml (or train_config.local.toml) and adjust.
+# 24GB GPUs: set model.base to e.g. "Qwen/Qwen2.5-14B-Instruct"
+
+[model]
+base = "Qwen/Qwen2.5-14B-Instruct"
+max_seq_length = 4096
+load_in_4bit = true
+
+[lora]
+rank = 16
+alpha = 16
+
+[training]
+batch_size = 2
+grad_accumulation_steps = 4
+max_steps = 1000
+learning_rate = 2.0e-4
+sft_max_seq_length = 2048
+warmup_steps = 10
+logging_steps = 10
+save_steps = 250
+eval_steps = 250
+# Add "cli" for terminal loss/LR/eval charts (requires: pip install cli-charts)
+report_to = "cli"
+
+[paths]
+data_dir = "data/romance_corpus"
+output_dir = "romance_qwen_lora"
+
+[export]
+f16_dir = "romance_qwen_f16"
+q5_dir = "romance_qwen_q5"
+q4_dir = "romance_qwen_q4"

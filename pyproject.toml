@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "romance-training"
+version = "0.1.0"
+description = "Training data, fine-tuning scripts, and integration tests for Romance Factory models"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+train = []
+dev = [
+    "hypothesis>=6.0",
+    "jsonschema>=4.0",
+    "lancedb>=0.6",
+    "pytest>=8.0",
+    "python-dotenv>=1.0",
+    "tiktoken>=0.5.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["train/tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+markers = [
+    "openrouter_live: calls OpenRouter over the network (requires ROMANCE_FACTORY_OPENROUTER_LIVE=1 and OPENROUTER_API_KEY)",
+    "local_llm_live: calls Ollama or openai_chat (LM Studio); requires ROMANCE_FACTORY_LOCAL_LLM_LIVE=1",
+    "prompt_opt_live: runs the live prompt-optimization harness against LM Studio (requires ROMANCE_FACTORY_PROMPT_OPT_LIVE=1 and LMSTUDIO_TOKEN)",
+]
