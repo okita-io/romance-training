@@ -41,12 +41,48 @@ sys.path.insert(0, str(ROOT))
 DEFAULT_INPUT = ROOT / "train" / "romance_corpus" / "gutenberg_romance.jsonl"
 DEFAULT_OUTPUT = ROOT / "train" / "romance_corpus" / "gutenberg_styled.jsonl"
 
+CHUNK_WORDS = 500
+CHUNK_OVERLAP = 50
+
+
+def _chunk_record(record: dict) -> list[dict]:
+    """Split a long record into ~500-word chunks. Short records pass through unchanged."""
+    text = record.get("text", "")
+    words = text.split()
+    if len(words) <= CHUNK_WORDS * 1.5:
+        return [record]
+
+    source = record.get("source") or record.get("metadata", {}).get("source", "unknown")
+    base_meta = {k: v for k, v in record.items() if k != "text"}
+
+    chunks = []
+    step = CHUNK_WORDS - CHUNK_OVERLAP
+    total = max(1, (len(words) - CHUNK_OVERLAP + step - 1) // step)
+
+    for i, start in enumerate(range(0, len(words), step)):
+        chunk_words = words[start: start + CHUNK_WORDS]
+        if len(chunk_words) < 30:
+            break
+        chunks.append({
+            "text": " ".join(chunk_words),
+            "metadata": {
+                "source": source,
+                "chunk_index": i,
+                "total_chunks": total,
+                "chunk_size": CHUNK_WORDS,
+                "chunk_overlap": CHUNK_OVERLAP,
+                "word_count": len(chunk_words),
+                **{k: v for k, v in base_meta.items() if k not in ("metadata",)},
+            },
+        })
+
+    return chunks
+
 
 def _record_key(record: dict) -> str:
     m = record.get("metadata", {})
-    source = m.get("source", "")
+    source = m.get("source", record.get("source", ""))
     chunk = m.get("chunk_index", 0)
-    # Fall back to first 60 chars of text if source/chunk absent
     text_sig = record.get("text", "")[:60]
     return f"{source}|{chunk}|{text_sig}"
 
@@ -110,6 +146,12 @@ def run(
 
     if limit:
         records = records[:limit]
+
+    # Auto-chunk any full-book records before classification
+    pre_chunk = len(records)
+    records = [chunk for r in records for chunk in _chunk_record(r)]
+    if len(records) != pre_chunk:
+        print(f"Chunked {pre_chunk} records → {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP}-word overlap)")
     print(f"Total records: {len(records)}")
 
     # Resume: collect already-processed keys
@@ -201,7 +243,8 @@ def main() -> None:
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--no-llm", action="store_true", help="Computable metrics only (fast)")
-    parser.add_argument("--model", default="llama3.1:8b", help="Ollama model for LLM metrics")
+    parser.add_argument("--model", default=None, help="Model name (defaults to LLM_MODEL env var)")
+    parser.add_argument("--base-url", default=None, help="LLM API base URL (default: LLM_BASE_URL or localhost:1234/v1)")
     parser.add_argument(
         "--llm-sample-rate", type=float, default=1.0,
         help="Fraction of records to run LLM on (0.0–1.0). Default: 1.0",
@@ -216,6 +259,14 @@ def main() -> None:
         print(f"Input not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
+    # Apply base-url override before any LLM calls
+    if args.base_url:
+        import tools.llm_client as _lc
+        _lc.DEFAULT_BASE_URL = args.base_url
+
+    from tools.llm_client import DEFAULT_MODEL
+    model = args.model or DEFAULT_MODEL
+
     if args.no_resume and args.output.exists():
         args.output.unlink()
 
@@ -223,7 +274,7 @@ def main() -> None:
         input_path=args.input,
         output_path=args.output,
         use_llm=not args.no_llm,
-        llm_model=args.model,
+        llm_model=model,
         llm_sample_rate=args.llm_sample_rate,
         workers=args.workers,
         limit=args.limit,

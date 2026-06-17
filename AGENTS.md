@@ -1,54 +1,41 @@
-## Cursor Cloud specific instructions
+## Project overview
 
-### Project overview
+**Style Classifier Training** — a pipeline to annotate prose with Leech & Short style metrics and fine-tune Mistral-Nemo 12B as a prose style judge, classifier, and rewriter.
 
-**Romance Training** is a sibling repo to Romance Factory. It holds training data, Unsloth fine-tuning scripts, and integration tests that exercise `romance_factory` (the generate pipeline lives in the factory repo).
+See `README.md` for the full pipeline and run order.
 
-**Factory repo:** [`../romance-factory/`](../romance-factory/) — collect + generate only.
+## Development environment
 
-### Development environment
+- Python **3.12** recommended (3.10+ minimum).
+- CUDA GPU for training (RTX 3090, 24 GB tested).
+- Ollama running locally for LLM-based metrics.
 
-- Python **3.10+** (3.12 recommended for GPU training wheels).
-- Virtual environment at `.venv`.
-- **Always install Romance Factory first** for tests:
-  ```bash
-  pip install -e "../romance-factory[dev,v2]"
-  export PYTHONPATH="../romance-factory/src${PYTHONPATH:+:$PYTHONPATH}"
-  ```
-- Training deps: `pip install -r requirements-train.txt` or `CREATE_VENV=1 ./train/install_training_deps.sh` on a GPU machine.
-- Pin files: [`REQUIREMENTS.md`](REQUIREMENTS.md).
+```bash
+pip install -r requirements-train.txt
+pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+python -m spacy download en_core_web_sm
+```
 
-### Key directories
+## Key directories
 
 | Directory | Purpose |
 |-----------|---------|
-| `train/` | Fine-tuning scripts, `romance_corpus/`, config TOML |
-| `train/tests/` | Pytest suite (imports `romance_factory.*`) |
-| `tools/data_preparation/` | Corpus normalization (PG, Fiction-1B, combine) |
-| `cloud_setup/` | RunPod / Vast.ai helpers |
+| `source/` | `Style-in-Fiction.pdf` + generated `style_rubric.json` |
+| `tools/style_extraction/` | Phase 1: PDF → rubric JSON |
+| `tools/style_classification/` | Phase 2: classify corpus with style metrics |
+| `tools/training_formats/` | Phase 3: generate multi-task instruction pairs |
+| `train/` | Training script, config, corpus JSONL, generated outputs |
+| `cloud_setup/` | RunPod / Vast.ai / Modal helpers |
 
-### Tests
-
-```bash
-python -m pytest train/tests/ -v
-```
-
-Live/network markers match factory (`openrouter_live`, `local_llm_live`) — see `pyproject.toml`.
-
-### Fine-tuning
+## Run order
 
 ```bash
-cd train
-python train_qwen_unsloth.py --config train_config.toml
+python tools/style_extraction/extract_rubric.py
+python tools/style_classification/run_pipeline.py
+python tools/training_formats/generate_instruction_pairs.py
+python train/train_qwen_unsloth.py
 ```
 
-Copy `train_config.example.toml` first; adjust `model.base` for your VRAM.
+## Active training config
 
-### Data preparation
-
-```bash
-python tools/data_preparation/run_all_preparation.py
-python tools/data_preparation/combine_all_datasets.py
-```
-
-Set `ROMANCE_CORPUS_ROOT` for an external corpus mount (default: `data/corpus/`).
+`train/train_config.toml` — Mistral-Nemo 12B, QLoRA rank 32, data at `train/style_training/`.

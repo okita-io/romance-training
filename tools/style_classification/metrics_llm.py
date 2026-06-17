@@ -1,21 +1,31 @@
 """
-LLM-based semantic style metrics via Ollama.
-Handles dimensions that require interpretation, not just counting.
+LLM-based semantic style metrics via OpenAI-compatible endpoint.
+Works with LM Studio (default: localhost:1234) and Ollama (localhost:11434/v1).
+
+Configure via env vars:
+  LLM_BASE_URL   http://localhost:1234/v1  (LM Studio default)
+  LLM_MODEL      model name as loaded in LM Studio
 """
 
 from __future__ import annotations
 
 import json
 import re
-import urllib.request
+import sys
+from pathlib import Path
 from typing import Any
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "llama3.1:8b"
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+from llm_client import DEFAULT_MODEL, LLMError, complete as llm_complete  # noqa: E402
 
-# Single-pass prompt — all semantic metrics in one call to minimise overhead.
-_PROMPT = """Analyze this prose passage for stylistic characteristics.
-Return ONLY a valid JSON object with exactly these keys and allowed values:
+# Single-pass prompt — all semantic metrics in one call to minimise inference overhead.
+_SYSTEM = (
+    "You are a literary stylistician. Analyse prose and return structured JSON. "
+    "Return ONLY valid JSON — no explanation, no markdown."
+)
+
+_PROMPT = """Analyse this prose passage for stylistic characteristics.
+Return a JSON object with exactly these keys and allowed values:
 
 {{
   "register": one of ["formal_literary", "formal_technical", "neutral_narrative", "colloquial", "dialect", "archaic"],
@@ -31,9 +41,7 @@ Return ONLY a valid JSON object with exactly these keys and allowed values:
 }}
 
 Passage:
-{text}
-
-JSON:"""
+{text}"""
 
 
 def assess(
@@ -43,61 +51,41 @@ def assess(
 ) -> dict[str, Any]:
     """
     Run LLM analysis on a passage and return semantic style metrics.
-    Falls back to defaults on any error so the pipeline never stalls.
+    Falls back to defaults on any connection error so the pipeline never stalls.
     """
-    # Truncate to ~1200 words — sufficient for style cues, avoids slow inference
     words = text.split()
     if len(words) > 1200:
         text = " ".join(words[:1200]) + "…"
 
-    prompt = _PROMPT.format(text=text)
-    raw = _call_ollama(prompt, model)
-    result = _parse_json(raw)
-    if result:
-        return result
-    return _defaults()
-
-
-def _call_ollama(prompt: str, model: str) -> str:
-    payload = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": 0.05,
-            "num_predict": 256,
-            "stop": ["\n\n", "Passage:"],
-        },
-    }).encode()
-
-    req = urllib.request.Request(
-        OLLAMA_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
     try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            return json.loads(resp.read()).get("response", "")
-    except Exception:
-        return ""
+        raw = llm_complete(
+            _PROMPT.format(text=text),
+            system=_SYSTEM,
+            model=model,
+            max_tokens=256,
+            temperature=0.05,
+            stop=["\n\n"],
+        )
+    except LLMError as exc:
+        sys.stderr.write(f"  LLM metrics skipped: {exc}\n")
+        return _defaults()
+
+    result = _parse_json(raw)
+    return result if result else _defaults()
 
 
 def _parse_json(raw: str) -> dict | None:
-    # Try direct parse first
     raw = raw.strip()
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         pass
-
-    # Extract first JSON object
     m = re.search(r"\{[^{}]+\}", raw, re.DOTALL)
     if m:
         try:
             return json.loads(m.group())
         except json.JSONDecodeError:
             pass
-
     return None
 
 

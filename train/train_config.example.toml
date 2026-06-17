@@ -1,36 +1,37 @@
-# This is data for train_qwen_unsloth.py — do not run with Python directly.
-# Run from repo root:  python train_qwen_unsloth.py --config train_config.toml
-#
-# Copy to train_config.toml (or train_config.local.toml) and adjust.
-# 24GB GPUs: set model.base to e.g. "Qwen/Qwen2.5-14B-Instruct"
+# Template — copy to train_config.toml (or train_config.local.toml) and adjust.
+# Run from repo root: python train/train_qwen_unsloth.py
+# Optional env overrides: TRAIN_CONFIG_PATH, ROMANCE_BASE_MODEL
 
+# Mistral-Nemo 12B — fits on a single RTX 3090 (24 GB) in 4-bit QLoRA
 [model]
-base = "Qwen/Qwen2.5-14B-Instruct"
+base = "mistralai/Mistral-Nemo-Instruct-2407"
 max_seq_length = 4096
 load_in_4bit = true
 
 [lora]
-rank = 16
-alpha = 16
+rank = 32
+alpha = 32
+target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 [training]
 batch_size = 2
-grad_accumulation_steps = 4
-max_steps = 1000
+grad_accumulation_steps = 8
+# effective batch = 16
+max_steps = 3000
 learning_rate = 2.0e-4
 sft_max_seq_length = 2048
-warmup_steps = 10
-logging_steps = 10
-save_steps = 250
-eval_steps = 250
-# Add "cli" for terminal loss/LR/eval charts (requires: pip install cli-charts)
+warmup_steps = 50
+logging_steps = 25
+save_steps = 500
+eval_steps = 500
+# none | tensorboard | wandb | cli | tensorboard,cli
 report_to = "cli"
 
 [paths]
-data_dir = "data/romance_corpus"
-output_dir = "romance_qwen_lora"
+data_dir = "train/style_training"
+output_dir = "mistral_style_lora"
 
 [export]
-f16_dir = "romance_qwen_f16"
-q5_dir = "romance_qwen_q5"
-q4_dir = "romance_qwen_q4"
+f16_dir = "mistral_style_f16"
+q5_dir = "mistral_style_q5"
+q4_dir = "mistral_style_q4"

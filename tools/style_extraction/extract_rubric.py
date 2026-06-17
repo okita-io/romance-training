@@ -26,8 +26,10 @@ PDF_PATH = ROOT / "source" / "Style-in-Fiction.pdf"
 EXTRACTED_DIR = ROOT / "source" / "extracted"
 RUBRIC_PATH = ROOT / "source" / "style_rubric.json"
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "llama3.1:8b"
+DEFAULT_MODEL = os.environ.get("LLM_MODEL", "local-model")
+
+sys.path.insert(0, str(ROOT / "tools"))
+from llm_client import LLMError, check_connection, complete as llm_complete  # noqa: E402
 
 STYLE_KEYWORDS = [
     "style", "lexic", "gramm", "syntax", "rhetoric", "figur",
@@ -115,24 +117,17 @@ def is_style_relevant(section: dict[str, str]) -> bool:
     return any(kw in combined for kw in STYLE_KEYWORDS)
 
 
-def call_ollama(prompt: str, model: str) -> str:
-    payload = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": 0.05, "num_predict": 4096},
-    }).encode()
-
-    req = urllib.request.Request(
-        OLLAMA_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
+def call_llm(prompt: str, model: str) -> str:
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            return json.loads(resp.read()).get("response", "")
-    except Exception as exc:
-        print(f"  Ollama error: {exc}", file=sys.stderr)
+        return llm_complete(
+            prompt,
+            system="You are an expert in linguistics and literary stylistics. Return only valid JSON.",
+            model=model,
+            max_tokens=4096,
+            temperature=0.05,
+        )
+    except LLMError as exc:
+        print(f"  LLM error: {exc}", file=sys.stderr)
         return ""
 
 
@@ -146,7 +141,7 @@ def extract_dims_from_section(section: dict[str, str], model: str) -> list[dict]
         content = content[:8000] + "\n[...truncated]"
 
     prompt = EXTRACTION_PROMPT.format(title=section["title"], content=content)
-    response = call_ollama(prompt, model)
+    response = call_llm(prompt, model)
     if not response:
         return []
 
@@ -432,16 +427,40 @@ def build_rubric(pdf_path: Path, model: str, skip_pdf: bool = False) -> dict[str
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract style rubric from Style in Fiction PDF")
+    from llm_client import DEFAULT_BASE_URL, DEFAULT_MODEL as _DEFAULT_MODEL, check_connection
+
+    parser = argparse.ArgumentParser(
+        description="Extract style rubric from Style in Fiction PDF",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "LM Studio (default):  --base-url http://localhost:1234/v1\n"
+            "Ollama:               --base-url http://localhost:11434/v1\n"
+        ),
+    )
     parser.add_argument("--pdf", type=Path, default=PDF_PATH)
     parser.add_argument("--output", type=Path, default=RUBRIC_PATH)
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name")
+    parser.add_argument("--model", default=_DEFAULT_MODEL, help="Model name as shown in LM Studio / Ollama")
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="LLM API base URL")
     parser.add_argument("--skip-pdf", action="store_true", help="Skip PDF conversion, use existing markdown")
     parser.add_argument("--force", action="store_true", help="Overwrite existing rubric")
     args = parser.parse_args()
 
+    # Set base URL for the shared client
+    import llm_client
+    llm_client.DEFAULT_BASE_URL = args.base_url
+
+    # Verify LLM is reachable before doing expensive PDF conversion
+    print(f"Checking LLM at {args.base_url} …")
+    try:
+        models = check_connection(args.base_url)
+        print(f"  Available models: {models or ['(none listed — model name required)']}")
+    except Exception as exc:
+        print(f"\n  LLM not reachable: {exc}", file=sys.stderr)
+        print("  Start LM Studio and enable the local server, or start Ollama.", file=sys.stderr)
+        sys.exit(1)
+
     if args.output.exists() and not args.force:
-        print(f"Rubric already exists: {args.output}")
+        print(f"\nRubric already exists: {args.output}")
         print("Use --force to regenerate.")
         sys.exit(0)
 
