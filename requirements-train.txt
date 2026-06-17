@@ -32,3 +32,19 @@ cli-charts>=0.0.1
 
 # Unsloth (installed separately via git)
 # pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+
+# --- Style pipeline dependencies ---
+
+# Computable metrics (Phase 2)
+spacy>=3.7.0
+# After install: python -m spacy download en_core_web_sm
+textstat>=0.7.3
+
+# Ollama Python client — for LLM-based semantic metrics
+# Requires Ollama running locally: https://ollama.ai
+ollama>=0.1.0
+
+# PDF → Markdown conversion (Phase 1 — extract_rubric.py only)
+# Install separately (complex deps): pip install marker-pdf
+# Or via: pip install "marker-pdf[full]"
+# marker-pdf>=0.2.0

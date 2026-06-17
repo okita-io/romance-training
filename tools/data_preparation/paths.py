@@ -29,6 +29,19 @@ TRAINING = {
 FINAL_COMBINED_TRAIN = TRAINING["final_combined"] / "train.jsonl"
 FINAL_COMBINED_VAL = TRAINING["final_combined"] / "validation.jsonl"
 
+# --- Style pipeline paths ---
+
+# Rubric extracted from Style in Fiction (Leech & Short)
+STYLE_RUBRIC = REPO_ROOT / "source" / "style_rubric.json"
+
+# Gutenberg corpus enriched with style_profile metadata
+GUTENBERG_STYLED = IN_REPO_CORPUS / "gutenberg_styled.jsonl"
+
+# Multi-task instruction pairs ready for fine-tuning
+STYLE_TRAINING_DIR = REPO_ROOT / "train" / "style_training"
+STYLE_TRAIN = STYLE_TRAINING_DIR / "train.jsonl"
+STYLE_VAL = STYLE_TRAINING_DIR / "validation.jsonl"
+
 
 def project_gutenberg_source() -> Path:
     """Prefer central corpus; fall back to in-repo gutenberg_romance.jsonl."""
@@ -40,6 +53,13 @@ def project_gutenberg_source() -> Path:
         if path.exists():
             return path
     return candidates[0]
+
+
+def gutenberg_styled_source() -> Path:
+    """Prefer style-enriched JSONL; fall back to plain gutenberg_romance."""
+    if GUTENBERG_STYLED.exists():
+        return GUTENBERG_STYLED
+    return project_gutenberg_source()
 
 
 def fiction1b_source() -> Path:
