@@ -48,3 +48,6 @@ ollama>=0.1.0
 # Install separately (complex deps): pip install marker-pdf
 # Or via: pip install "marker-pdf[full]"
 # marker-pdf>=0.2.0
+
+# PDF page rendering for vision harness (pdf_vision_harness.py)
+pymupdf>=1.24.0
