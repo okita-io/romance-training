@@ -42,41 +42,18 @@ DEFAULT_INPUT = ROOT / "train" / "romance_corpus" / "gutenberg_romance.jsonl"
 DEFAULT_OUTPUT = ROOT / "train" / "romance_corpus" / "gutenberg_styled.jsonl"
 
 CHUNK_WORDS = 500
-CHUNK_OVERLAP = 50
+CHUNK_OVERLAP_SENTENCES = 2
 
 
 def _chunk_record(record: dict) -> list[dict]:
-    """Split a long record into ~500-word chunks. Short records pass through unchanged."""
-    text = record.get("text", "")
-    words = text.split()
-    if len(words) <= CHUNK_WORDS * 1.5:
-        return [record]
+    """Split a long record into ~500-word sentence-boundary chunks."""
+    from tools.style_classification.chunk_text import chunk_record
 
-    source = record.get("source") or record.get("metadata", {}).get("source", "unknown")
-    base_meta = {k: v for k, v in record.items() if k != "text"}
-
-    chunks = []
-    step = CHUNK_WORDS - CHUNK_OVERLAP
-    total = max(1, (len(words) - CHUNK_OVERLAP + step - 1) // step)
-
-    for i, start in enumerate(range(0, len(words), step)):
-        chunk_words = words[start: start + CHUNK_WORDS]
-        if len(chunk_words) < 30:
-            break
-        chunks.append({
-            "text": " ".join(chunk_words),
-            "metadata": {
-                "source": source,
-                "chunk_index": i,
-                "total_chunks": total,
-                "chunk_size": CHUNK_WORDS,
-                "chunk_overlap": CHUNK_OVERLAP,
-                "word_count": len(chunk_words),
-                **{k: v for k, v in base_meta.items() if k not in ("metadata",)},
-            },
-        })
-
-    return chunks
+    return chunk_record(
+        record,
+        target_words=CHUNK_WORDS,
+        overlap_sentences=CHUNK_OVERLAP_SENTENCES,
+    )
 
 
 def _record_key(record: dict) -> str:
@@ -151,7 +128,7 @@ def run(
     pre_chunk = len(records)
     records = [chunk for r in records for chunk in _chunk_record(r)]
     if len(records) != pre_chunk:
-        print(f"Chunked {pre_chunk} records → {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP}-word overlap)")
+        print(f"Chunked {pre_chunk} records → {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)")
     print(f"Total records: {len(records)}")
 
     # Resume: collect already-processed keys

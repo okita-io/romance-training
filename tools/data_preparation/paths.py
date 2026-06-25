@@ -31,10 +31,24 @@ def project_gutenberg_source() -> Path:
 # --- Style pipeline paths ---
 
 STYLE_RUBRIC = REPO_ROOT / "source" / "style_rubric.json"
+STYLE_KNOWLEDGE = REPO_ROOT / "source" / "extracted" / "style_knowledge.jsonl"
+STYLE_MARKDOWN = REPO_ROOT / "source" / "extracted" / "Style-in-Fiction.md"
 GUTENBERG_STYLED = IN_REPO_CORPUS / "gutenberg_styled.jsonl"
 STYLE_TRAINING_DIR = REPO_ROOT / "train" / "style_training"
 STYLE_TRAIN = STYLE_TRAINING_DIR / "train.jsonl"
 STYLE_VAL = STYLE_TRAINING_DIR / "validation.jsonl"
+
+# --- HF source data ---
+
+SOURCE_DATA = REPO_ROOT / "source-data"
+HF_SOURCE_ROOT = SOURCE_DATA / "hf"
+HF_MANIFESTS = SOURCE_DATA / "manifests"
+UNIFIED_FICTION_CORPUS = SOURCE_DATA / "unified" / "fiction_corpus.jsonl"
+
+
+def unified_fiction_corpus() -> Path:
+    """Return unified HF fiction corpus if built; else the path where it would be written."""
+    return UNIFIED_FICTION_CORPUS
 
 
 def gutenberg_styled_source() -> Path:

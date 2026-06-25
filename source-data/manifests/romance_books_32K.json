@@ -1,0 +1,9 @@
+{
+  "repo_id": "diltdicker/romance_books_32K",
+  "slug": "romance_books_32k",
+  "genres": ["romance"],
+  "text_field": "description",
+  "genre_tags_field": "genres",
+  "min_words": 30,
+  "extra_fields": ["id", "pub_month", "isbn13"]
+}

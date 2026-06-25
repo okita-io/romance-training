@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PDF_PATH = ROOT / "source" / "Style-in-Fiction.pdf"
 EXTRACTED_DIR = ROOT / "source" / "extracted"
 RUBRIC_PATH = ROOT / "source" / "style_rubric.json"
+KNOWLEDGE_PATH = ROOT / "source" / "extracted" / "style_knowledge.jsonl"
 
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "local-model")
 
@@ -377,18 +378,56 @@ SEED_DIMS: list[dict[str, Any]] = [
 ]
 
 
-def build_rubric(pdf_path: Path, model: str, skip_pdf: bool = False) -> dict[str, Any]:
-    if skip_pdf:
-        md_files = list(EXTRACTED_DIR.rglob("*.md"))
-        if not md_files:
-            raise FileNotFoundError("No extracted markdown found. Run without --skip-pdf first.")
-        md_path = md_files[0]
-        print(f"Using existing markdown: {md_path}")
-    else:
-        md_path = convert_pdf(pdf_path, EXTRACTED_DIR)
+def load_knowledge_sections(path: Path = KNOWLEDGE_PATH) -> list[dict[str, str]]:
+    """Load RAG knowledge chunks as rubric-extraction sections."""
+    if not path.exists():
+        return []
+    sections: list[dict[str, str]] = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            body = rec.get("text", "")
+            if len(body) < 400:
+                continue
+            sections.append({
+                "title": rec.get("title", "Section"),
+                "content": body,
+            })
+    return sections
 
-    text = md_path.read_text(encoding="utf-8", errors="replace")
-    sections = split_sections(text)
+
+def build_rubric(
+    pdf_path: Path,
+    model: str,
+    skip_pdf: bool = False,
+    use_knowledge: bool = False,
+) -> dict[str, Any]:
+    sections: list[dict[str, str]]
+    if use_knowledge:
+        sections = load_knowledge_sections()
+        if not sections:
+            print("Knowledge base not found — run build_style_knowledge.py first")
+            print("Falling back to merged markdown sections")
+            use_knowledge = False
+
+    if not use_knowledge:
+        if skip_pdf:
+            md_files = list(EXTRACTED_DIR.rglob("*.md"))
+            if not md_files:
+                raise FileNotFoundError("No extracted markdown found. Run without --skip-pdf first.")
+            md_path = md_files[0]
+            print(f"Using existing markdown: {md_path}")
+        else:
+            md_path = convert_pdf(pdf_path, EXTRACTED_DIR)
+
+        text = md_path.read_text(encoding="utf-8", errors="replace")
+        sections = split_sections(text)
+
     relevant = [s for s in sections if is_style_relevant(s)]
     print(f"Sections: {len(sections)} total, {len(relevant)} style-relevant")
 
@@ -443,6 +482,11 @@ def main() -> None:
     parser.add_argument("--model", default=_DEFAULT_MODEL, help="Model name as shown in LM Studio / Ollama")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="LLM API base URL")
     parser.add_argument("--skip-pdf", action="store_true", help="Skip PDF conversion, use existing markdown")
+    parser.add_argument(
+        "--use-knowledge",
+        action="store_true",
+        help="Extract from style_knowledge.jsonl (run build_style_knowledge.py first)",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite existing rubric")
     args = parser.parse_args()
 
@@ -469,7 +513,12 @@ def main() -> None:
         print(f"PDF not found: {args.pdf}", file=sys.stderr)
         sys.exit(1)
 
-    rubric = build_rubric(args.pdf, model=args.model, skip_pdf=args.skip_pdf)
+    rubric = build_rubric(
+        args.pdf,
+        model=args.model,
+        skip_pdf=args.skip_pdf,
+        use_knowledge=args.use_knowledge,
+    )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(rubric, indent=2, ensure_ascii=False), encoding="utf-8")

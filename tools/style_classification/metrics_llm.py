@@ -24,7 +24,10 @@ _SYSTEM = (
     "Return ONLY valid JSON — no explanation, no markdown."
 )
 
-_PROMPT = """Analyse this prose passage for stylistic characteristics.
+_PROMPT = """Analyse this prose passage for stylistic characteristics using the Leech & Short framework.
+
+{rubric_context}
+
 Return a JSON object with exactly these keys and allowed values:
 
 {{
@@ -39,6 +42,8 @@ Return a JSON object with exactly these keys and allowed values:
   "dialogue_style": one of ["none", "naturalistic", "stylized", "period"],
   "imagery_type": one of ["none", "visual", "sensory_mixed", "abstract", "nature", "urban"]
 }}
+
+Base judgments on the passage text and the rubric definitions above. Return ONLY valid JSON.
 
 Passage:
 {text}"""
@@ -57,9 +62,16 @@ def assess(
     if len(words) > 1200:
         text = " ".join(words[:1200]) + "…"
 
+    rubric_context = ""
+    if rubric is not None:
+        from tools.style_classification.style_knowledge import build_classification_context
+        rubric_context = build_classification_context(text, rubric=rubric, knowledge_k=2)
+    if not rubric_context.strip():
+        rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
+
     try:
         raw = llm_complete(
-            _PROMPT.format(text=text),
+            _PROMPT.format(text=text, rubric_context=rubric_context),
             system=_SYSTEM,
             model=model,
             max_tokens=256,

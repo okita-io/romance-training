@@ -11,27 +11,39 @@ The trained model can:
 
 ```
 source/Style-in-Fiction.pdf
-  └─[Phase 1]─▶ source/style_rubric.json          (Leech & Short taxonomy)
-                  └─[Phase 2]─▶ gutenberg_styled.jsonl   (corpus + style_profile per chunk)
-                                  └─[Phase 3]─▶ style_training/train.jsonl   (instruction pairs)
-                                                  └─[Phase 4]─▶ mistral_style_lora/   (fine-tuned model)
+  └─[Phase 1A]─▶ source/extracted/pages/*.md + Style-in-Fiction.md   (vision LLM + mermaid diagrams)
+                  └─[Phase 1B]─▶ source/extracted/style_knowledge.jsonl   (RAG chunks)
+                                  └─[Phase 1C]─▶ source/style_rubric.json   (Leech & Short taxonomy)
+                                                  └─[Phase 2]─▶ gutenberg_styled.jsonl   (sentence-aware chunks + style_profile)
+                                                                  └─[Phase 3]─▶ style_training/train.jsonl
+                                                                                  └─[Phase 4]─▶ mistral_style_lora/
 ```
 
 ## Layout
 
 ```
-source/
-├── Style-in-Fiction.pdf          # Leech & Short reference (rubric source)
-└── style_rubric.json             # Generated — review before Phase 2
+source/                           # Pipeline inputs and generated reference data
+├── Style-in-Fiction.pdf          # Place PDF here (copy from style-guide/ if needed)
+├── style_rubric.json             # Generated Phase 1C — review before Phase 2
+└── extracted/                    # Generated Phase 1A–1B
+    ├── pages/page_0001.md        # Per-page vision transcription
+    ├── Style-in-Fiction.md       # Merged markdown (mermaid flowcharts)
+    └── style_knowledge.jsonl     # RAG chunks for rubric + classification
+
+style-guide/
+└── Style-in-Fiction.pdf          # Bundled reference copy (symlink or copy → source/)
 
 tools/
 ├── llm_client.py                 # Shared OpenAI-compatible LLM client (LM Studio / Ollama)
 ├── style_extraction/
-│   ├── extract_rubric.py         # Phase 1: PDF → style_rubric.json
-│   └── pdf_vision_harness.py     # Phase 1A: PDF pages → markdown via vision LLM
+│   ├── extract_rubric.py         # Phase 1C: knowledge/markdown → style_rubric.json
+│   ├── build_style_knowledge.py  # Phase 1B: markdown → RAG JSONL
+│   └── pdf_vision_harness.py     # Phase 1A: PDF pages → markdown (mermaid diagrams)
 ├── style_classification/
 │   ├── metrics_computable.py     # spaCy + textstat (fast, no LLM)
-│   ├── metrics_llm.py            # LM Studio semantic metrics (single-pass)
+│   ├── metrics_llm.py            # Rubric + RAG-grounded semantic metrics
+│   ├── style_knowledge.py        # Retrieve Leech & Short chunks for classification
+│   ├── chunk_text.py             # Sentence-boundary chunking
 │   ├── classify_passage.py       # Combines both into a style_profile dict
 │   └── run_pipeline.py           # Phase 2: bulk JSONL enrichment + auto-chunking
 └── training_formats/
@@ -41,9 +53,11 @@ train/
 ├── train_qwen_unsloth.py         # LoRA + GGUF export via Unsloth (model set by config)
 ├── train_config.toml             # Active config → Mistral-Nemo 12B
 ├── train_config.example.toml     # Template — copy and adjust
+├── tests/
+│   └── test_style_fidelity.py    # Chunking + knowledge retrieval unit tests
 ├── romance_corpus/
 │   ├── gutenberg_romance.jsonl   # Raw Gutenberg prose (full books — auto-chunked at runtime)
-│   └── gutenberg_styled.jsonl    # Generated — 500-word chunks with style_profile
+│   └── gutenberg_styled.jsonl    # Generated — sentence-boundary ~500-word chunks + style_profile
 └── style_training/               # Generated — ready for fine-tuning
     ├── train.jsonl
     └── validation.jsonl
@@ -63,6 +77,21 @@ pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 python -m spacy download en_core_web_sm
 ```
 
+Full dependency map → `REQUIREMENTS.md`.
+
+Copy training config before Phase 4:
+
+```bash
+cp train/train_config.example.toml train/train_config.toml
+```
+
+Place the Leech & Short PDF where Phase 1 expects it (a copy ships in `style-guide/`):
+
+```bash
+mkdir -p source
+cp style-guide/Style-in-Fiction.pdf source/
+```
+
 ## LLM backend
 
 The pipeline uses an **OpenAI-compatible local server** for all LLM work. Both LM Studio and Ollama are supported.
@@ -78,42 +107,90 @@ ollama pull llama3.1:8b
 # then pass: --base-url http://localhost:11434/v1
 ```
 
-Override via env vars (no flags needed):
+Override via env vars or a repo-root `.env` file (loaded automatically; does not override exported vars):
+
 ```bash
-export LLM_BASE_URL=http://localhost:1234/v1
-export LLM_MODEL=your-model-name          # as shown in LM Studio
-export LLM_VISION_MODEL=your-vision-model # optional override for pdf_vision_harness.py
+# .env example
+OPENROUTER_API_KEY=sk-or-...
+LLM_BASE_URL=http://localhost:1234/v1
+LLM_MODEL=your-model-name          # as shown in LM Studio
+LLM_VISION_MODEL=your-vision-model # optional override for pdf_vision_harness.py
 ```
 
-## Phase 1 — Extract rubric
+Or export directly:
 
-Converts `source/Style-in-Fiction.pdf` to a structured JSON taxonomy. Requires LM Studio running. Run once; review the output before proceeding.
+```bash
+export LLM_BASE_URL=http://10.0.1.7:1234/v1
+export LLM_VISION_MODEL=your-vision-model-id
+```
 
-### Option A — Vision transcription (recommended)
+## Phase 1 — Extract rubric (quality-first)
 
-Feed each PDF page to a **Qwen3.6 vision** model (or any OpenAI-compatible VLM in LM Studio) and save per-page markdown:
+Phase 1 prioritizes **analytic fidelity** over speed. The PDF is transcribed by a vision LLM (with flowcharts converted to mermaid), chunked into a RAG knowledge base, then distilled into a structured rubric. That knowledge base is also retrieved during Phase 2 LLM classification.
+
+### 1A — Vision transcription (recommended)
+
+Feed each PDF page to a **Qwen3.6 vision** model (or any OpenAI-compatible VLM in LM Studio). Simple flowcharts are converted to fenced `mermaid` blocks.
 
 ```bash
 pip install pymupdf   # included in requirements-train.txt
 
-# Load a Qwen3.6 / Qwen-VL vision model in LM Studio, enable local server
 export LLM_VISION_MODEL=your-model-id-as-shown-in-lm-studio
 
-# Smoke test (first 3 pages)
 python tools/style_extraction/pdf_vision_harness.py --limit 3 --disable-thinking
-
-# Full run — resumable; re-run picks up unfinished pages
 python tools/style_extraction/pdf_vision_harness.py --disable-thinking --concat
 ```
 
-Outputs:
-- `source/extracted/pages/page_0001.md`, `page_0002.md`, … (one file per page)
-- `source/extracted/Style-in-Fiction.md` (merged, when `--concat` is passed)
-
-Then extract the rubric from the merged markdown:
+**LM Studio on another machine** (e.g. GPU server at `10.0.1.7`):
 
 ```bash
-python tools/style_extraction/extract_rubric.py --skip-pdf
+# Auto-connects to http://10.0.1.7:1234/v1 and picks a VL/vision model
+python tools/style_extraction/pdf_vision_harness.py --lm-studio-remote --limit 3 --pdf style-guide/Style-in-Fiction.pdf
+
+# Or set explicitly in .env:
+# LLM_BASE_URL=http://10.0.1.7:1234/v1
+# LLM_VISION_MODEL=qwen3-vl-...   # must support image input in LM Studio
+```
+
+The loaded model must accept **image** inputs. Plain instruct models (e.g. `gemma-4-12b-it-...` without VL) will fail with “does not support image inputs”. Load a vision/VL checkpoint in LM Studio on that host.
+
+**Quality checks:** each page is validated before save (rejects reasoning dumps, repetition spam, and one-word outputs). On resume, bad pages are re-transcribed automatically.
+
+```bash
+# Audit existing conversions without calling the LLM
+python tools/style_extraction/pdf_vision_harness.py --audit-only
+```
+
+Outputs:
+- `source/extracted/pages/page_0001.md`, …
+- `source/extracted/Style-in-Fiction.md` (merged)
+
+**OpenRouter (cloud vision):** Nemotron tends to emit reasoning instead of clean transcription — prefer LM Studio with a VL model when possible. OpenRouter remains available with cooldown:
+
+```bash
+# OPENROUTER_API_KEY in repo-root .env is loaded automatically
+
+# Smoke test — 3 pages, 10s cooldown (default with --openrouter)
+python tools/style_extraction/pdf_vision_harness.py --openrouter --limit 3 --pdf style-guide/Style-in-Fiction.pdf
+
+# Full run — resumable; re-run skips finished pages
+python tools/style_extraction/pdf_vision_harness.py --openrouter --cooldown 10 --concat
+```
+
+Model: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`. Put `OPENROUTER_API_KEY` in repo-root `.env` (loaded automatically). On HTTP 429 the client retries with backoff.
+
+### 1B — RAG knowledge base
+
+```bash
+python tools/style_extraction/build_style_knowledge.py
+```
+
+Output: `source/extracted/style_knowledge.jsonl` — section-aware chunks with category tags and mermaid metadata.
+
+### 1C — Rubric extraction
+
+```bash
+python tools/style_extraction/extract_rubric.py --skip-pdf --use-knowledge
 ```
 
 ### Option B — marker-pdf (batch OCR, no vision model)
@@ -123,6 +200,8 @@ python tools/style_extraction/extract_rubric.py --skip-pdf
 ```bash
 pip install marker-pdf
 python tools/style_extraction/extract_rubric.py
+python tools/style_extraction/build_style_knowledge.py
+python tools/style_extraction/extract_rubric.py --skip-pdf --use-knowledge
 ```
 
 With Ollama instead of LM Studio for rubric LLM steps:
@@ -137,7 +216,17 @@ Edit `source/style_rubric.json` to correct or add dimensions before running Phas
 
 ## Phase 2 — Classify corpus
 
-Adds a `style_profile` to every chunk. Full books are auto-chunked into 500-word passages at runtime — no pre-processing step needed.
+Adds a `style_profile` to every chunk. Full books are auto-chunked into **~500-word sentence-boundary passages** (2-sentence overlap) at runtime — chunks never start or end mid-sentence.
+
+When the LLM is enabled (`run_pipeline.py` without `--no-llm`), classification retrieves Leech & Short reference excerpts from `style_knowledge.jsonl` and rubric definitions from `style_rubric.json` for each passage. The `--no-llm` path computes spaCy/textstat metrics only and does not use the knowledge base.
+
+Smoke-test a single passage:
+
+```bash
+echo "She wakened early, in the hour before dawn." | python tools/style_classification/classify_passage.py
+```
+
+Bulk classification:
 
 ```bash
 # Computable metrics only — no LLM needed, fast (~14 rec/s)
@@ -156,8 +245,24 @@ python tools/style_classification/run_pipeline.py --no-llm --workers 8
 python tools/style_classification/run_pipeline.py --no-llm --limit 50
 ```
 
-Resumable — interrupted runs pick up where they left off.
+Resumable — interrupted runs pick up where they left off. To regenerate after changing chunking or classification logic, pass `--no-resume` (deletes existing output and starts fresh).
+
 Output: `train/romance_corpus/gutenberg_styled.jsonl`
+
+Example `style_profile` fields (computable + LLM when enabled):
+
+```json
+{
+  "lexical_density": 0.51,
+  "sentence_length_mean": 18.4,
+  "type_token_ratio": 0.54,
+  "passive_rate": 0.09,
+  "register": "neutral_narrative",
+  "pov": "third_limited",
+  "tone": "melancholic",
+  "figurative_density": "low"
+}
+```
 
 ## Phase 3 — Generate instruction pairs
 
@@ -188,6 +293,16 @@ To override the model without editing config:
 ROMANCE_BASE_MODEL=mistralai/Mistral-Nemo-Instruct-2407 python train/train_qwen_unsloth.py
 ```
 
+## Testing
+
+Style-pipeline unit tests (no external LLM required):
+
+```bash
+PYTHONPATH=. python -m pytest train/tests/test_style_fidelity.py -q --noconftest
+```
+
+Other tests under `train/tests/` may require the sibling `romance-factory` package.
+
 ## Cloud training
 
 See `cloud_setup/` for RunPod, Vast.ai, and Modal helpers.
@@ -200,20 +315,16 @@ Known gaps in the repo and concrete tasks to close them. Use this as a backlog w
 
 | Gap | Task |
 |-----|------|
-| `source/Style-in-Fiction.pdf` is not in the repo | Document where to obtain the PDF (Leech & Short, *Style in Fiction*) and add a `source/README.md` with placement instructions, or host a licensed copy link if permitted |
+| PDF lives in `style-guide/` but pipeline reads `source/` | Documented above — `cp style-guide/Style-in-Fiction.pdf source/` |
 | `train/romance_corpus/gutenberg_romance.jsonl` is gitignored and not shipped | Add a corpus builder script (e.g. `tools/data_preparation/build_gutenberg_jsonl.py`) that reads bundled `train/romance_corpus/gutenberg/*.txt` and writes the expected JSONL schema |
-| `train/train_config.toml` is gitignored; only `train_config.example.toml` exists | Add a **Prerequisites** section above Phase 1 with `cp train/train_config.example.toml train/train_config.toml`, and fix Phase 4 wording ("copy example config first") |
-| No single **Quick start** block tying all phases together | Add a copy-paste run order from empty clone → trained GGUF, including prerequisite copies |
+| No single **Quick start** block tying all phases together | See run order in `AGENTS.md` and Phase 1A–4 sections above |
 
 ### Pipeline and tooling
 
 | Gap | Task |
 |-----|------|
 | `tools/data_preparation/prepare_project_gutenberg.py` expects external `data/corpus/…` JSONL, not the in-repo `.txt` files | Either wire it to the bundled Gutenberg texts or deprecate it in favor of the new JSONL builder; update `tools/data_preparation/paths.py` docs |
-| `classify_passage.py` is in the layout but not documented in any phase | Add a Phase 2 smoke-test example: `echo "…" \| python tools/style_classification/classify_passage.py` |
 | Phase 3B (rewrite pairs) is mentioned in the intro but has no implementation | Design rewrite pair schema, add `generate_rewrite_pairs.py` (frontier LLM or paired corpus), and document in a Phase 3B section |
-| No example `style_profile` JSON in the docs | Add a short sample output (computable + LLM fields) so training targets are visible without running the pipeline |
-| `extract_rubric.py` references `os.environ` without `import os` | Fix the missing import (runtime bug on Phase 1) |
 
 ### Training and inference
 
@@ -229,9 +340,9 @@ Known gaps in the repo and concrete tasks to close them. Use this as a backlog w
 | Gap | Task |
 |-----|------|
 | `REQUIREMENTS.md` references missing `docs/CORPUS_ORGANIZATION.md` and `docs/DATA_PATHS_QUICKREF.md` | Create those docs or remove stale links from `REQUIREMENTS.md` |
-| README does not link to `REQUIREMENTS.md` | Add a Setup note: "Full dependency map → `REQUIREMENTS.md`" |
+| README does not link to `REQUIREMENTS.md` | Done — see Setup section |
 | `pyproject.toml` description says "Romance Factory models" while README focuses on style classification | Align project metadata with the style-classifier scope (or note the sibling `romance-factory` relationship explicitly) |
-| `train/tests/` (50+ integration tests) is undocumented | Add a Testing section: `pip install -e "../romance-factory[dev,v2]"` + `pytest train/tests` |
+| `train/tests/` (50+ integration tests) is undocumented | Style pipeline tests documented in Testing section; romance-factory tests still need separate setup |
 
 ### Cloud and deployment
 
@@ -245,6 +356,8 @@ Known gaps in the repo and concrete tasks to close them. Use this as a backlog w
 
 | Gap | Task |
 |-----|------|
+| Knowledge retrieval uses keyword overlap, not embeddings | Add optional embedding index over `style_knowledge.jsonl` for better passage→reference matching |
 | Rubric quality depends on LLM extraction — no validation suite | Add a schema test + spot-check script for `style_rubric.json` dimension counts and required fields |
 | LLM metrics on a sample rate leave some records computable-only | Document tradeoffs; optionally backfill LLM fields in a second pass |
 | No eval harness for the fine-tuned style judge | Add a small held-out eval script (dimension accuracy, JSON parse rate, judge coherence) |
+| `generate_instruction_pairs.py` uses hardcoded score thresholds | Read `low`/`mid`/`high` bands from `style_rubric.json` instead |

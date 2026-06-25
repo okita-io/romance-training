@@ -18,3 +18,12 @@ romance-training-deploy.tar.gz
 # Large artifacts (corpus JSONL may be local-only)
 train/romance_corpus/*.jsonl
 data/corpus/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# HF source downloads and unified corpus output
+source-data/hf/
+source-data/unified/*.jsonl

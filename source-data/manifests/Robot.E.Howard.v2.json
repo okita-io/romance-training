@@ -1,0 +1,13 @@
+{
+  "repo_id": "leftyfeep/Robot.E.Howard.v2",
+  "slug": "robot_e_howard_v2",
+  "author": "Robert E. Howard",
+  "genres": ["fiction", "sword_and_sorcery", "pulp", "weird_fiction"],
+  "text_field": "chosen",
+  "min_words": 30,
+  "field_mapping": {
+    "title": "source",
+    "source_file": "source"
+  },
+  "extra_fields": ["id", "scene"]
+}

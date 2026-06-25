@@ -1,0 +1,12 @@
+{
+  "repo_id": "TristanBehrens/lovecraftcorpus",
+  "slug": "lovecraftcorpus",
+  "author": "H.P. Lovecraft",
+  "genres": ["horror", "weird_fiction"],
+  "text_field": "text",
+  "metadata_field": "meta",
+  "field_mapping": {
+    "source_file": "source"
+  },
+  "min_words": 30
+}

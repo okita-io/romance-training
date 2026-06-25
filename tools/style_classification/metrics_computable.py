@@ -49,7 +49,6 @@ _QUOTED_RE = re.compile(
     + "|" + _LDQ + "[^" + _RDQ + "]{5,500}" + _RDQ
     + "|" + _LSQ + "[^" + _RSQ + "]{5,500}" + _RSQ
 )
-_SENT_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z])')
 
 
 def compute(text: str) -> dict[str, Any]:
@@ -64,7 +63,9 @@ def compute(text: str) -> dict[str, Any]:
     metrics: dict[str, Any] = {"word_count": word_count}
 
     # Sentence-level
-    sents = _split_sentences(text)
+    from tools.style_classification.chunk_text import split_sentences
+
+    sents = split_sentences(text)
     n_sents = max(1, len(sents))
     sent_lengths = [len(s.split()) for s in sents if s.strip()]
 
@@ -144,8 +145,3 @@ def compute(text: str) -> dict[str, Any]:
         ) if depths else 0.0
 
     return metrics
-
-
-def _split_sentences(text: str) -> list[str]:
-    parts = _SENT_SPLIT_RE.split(text)
-    return [p.strip() for p in parts if p.strip()]
