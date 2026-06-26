@@ -1,0 +1,11 @@
+{
+  "repo_id": "mrcedric98/fiction_books",
+  "slug": "fiction_books",
+  "genres": ["fiction"],
+  "files": "**/*.parquet",
+  "text_field": "chapter_text",
+  "title_field": "book_title",
+  "extra_fields": ["book_id", "num_words", "len_of_chapter"],
+  "min_words": 50,
+  "notes": "Chapter-level rows (~20k). Uses chapter_text, not chapter_and_next."
+}

@@ -22,7 +22,7 @@ def _run_hf_download(repo_id: str, local_dir: Path, include: str | None) -> None
         "hf",
         "download",
         repo_id,
-        "--type",
+        "--repo-type",
         "dataset",
         "--local-dir",
         str(local_dir),

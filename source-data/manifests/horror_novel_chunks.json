@@ -1,0 +1,10 @@
+{
+  "repo_id": "molbal/horror-novel-chunks",
+  "slug": "horror_novel_chunks",
+  "genres": ["horror", "fiction", "project_gutenberg"],
+  "files": "**/*.parquet",
+  "text_field": "chunk",
+  "source_file_field": "source",
+  "min_words": 30,
+  "notes": "Pre-chunked Gutenberg horror (~5.5k rows)."
+}

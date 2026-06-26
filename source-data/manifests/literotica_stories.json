@@ -1,0 +1,9 @@
+{
+  "repo_id": "taozi555/literotica-stories",
+  "slug": "literotica_stories",
+  "genres": ["fiction", "erotica"],
+  "files": "**/*.parquet",
+  "text_field": "text",
+  "min_words": 50,
+  "notes": "645k story texts (~10.8 GB). Row-level prose; convert_hf_parquet.py without --chunk."
+}

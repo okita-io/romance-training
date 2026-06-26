@@ -1,0 +1,12 @@
+{
+  "repo_id": "ppirli/Gutenberg-Fiction",
+  "slug": "gutenberg_fiction",
+  "genres": ["fiction", "project_gutenberg"],
+  "files": "**/*.parquet",
+  "text_field": "text",
+  "title_field": "book_title",
+  "author_field": "author",
+  "extra_fields": ["etextno", "issued"],
+  "min_words": 100,
+  "notes": "23k full Gutenberg books (~4.8 GB). Use convert_hf_parquet.py --chunk."
+}

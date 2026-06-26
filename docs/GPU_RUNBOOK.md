@@ -91,7 +91,14 @@ Optional additional sources (manifests in repo):
 ```bash
 python tools/data_preparation/download_hf_dataset.py TristanBehrens/lovecraftcorpus
 python tools/data_preparation/download_hf_dataset.py leftyfeep/Robot.E.Howard.v2
+python tools/data_preparation/download_hf_dataset.py taozi555/literotica-stories
+python tools/data_preparation/download_hf_dataset.py mrcedric98/fiction_books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fiction-books
+python tools/data_preparation/download_hf_dataset.py molbal/horror-novel-chunks
+python tools/data_preparation/download_hf_dataset.py ppirli/Gutenberg-Fiction
 ```
+
+Convert with `convert_hf_parquet.py --dataset <slug>` (add `--chunk` for full-book corpora). See `source-data/README.md`.
 
 ---
 

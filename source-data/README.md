@@ -13,7 +13,12 @@ source-data/
 │   ├── Robot.E.Howard.v2.json
 │   ├── romance_books_32K.json
 │   ├── romance_books_korshuk.json
-│   └── gutenberg_gothic_fiction.json
+│   ├── gutenberg_gothic_fiction.json
+│   ├── literotica_stories.json
+│   ├── fiction_books.json
+│   ├── fiction_books_korshuk.json
+│   ├── horror_novel_chunks.json
+│   └── gutenberg_fiction.json
 ├── processed/          # Per-dataset extractions (gitignored)
 │   ├── romance_books_korshuk/
 │   ├── romance_books_32k/
@@ -51,9 +56,24 @@ python tools/data_preparation/download_hf_dataset.py leftyfeep/Robot.E.Howard.v2
 python tools/data_preparation/download_hf_dataset.py diltdicker/romance_books_32K
 python tools/data_preparation/download_hf_dataset.py Dwaraka/Training_Dataset_of_Project_Gutebberg_Gothic_Fiction
 python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/romance-books
+python tools/data_preparation/download_hf_dataset.py taozi555/literotica-stories
+python tools/data_preparation/download_hf_dataset.py mrcedric98/fiction_books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fiction-books
+python tools/data_preparation/download_hf_dataset.py molbal/horror-novel-chunks
+python tools/data_preparation/download_hf_dataset.py ppirli/Gutenberg-Fiction
 ```
 
 Files land in `source-data/hf/<Author>__<name>/`. Add or edit a manifest in `source-data/manifests/` when field names differ from the defaults.
+
+Convert parquet datasets to Phase 2 input:
+
+```bash
+python tools/data_preparation/convert_hf_parquet.py --dataset horror_novel_chunks
+python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books
+python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books_korshuk --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset gutenberg_fiction --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset literotica_stories
+```
 
 ## Corpus roles (romance + gothic)
 
@@ -62,8 +82,13 @@ Files land in `source-data/hf/<Author>__<name>/`. Add or edit a manifest in `sou
 | `diltdicker/romance_books_32K` | Book **blurbs** + genre tags | ~25k train | Register, tone, romance metadata |
 | `AlekseyKorshuk/romance-books` | Likely **full text** (gated) | ~263 MB | Long-form romance prose — accept HF terms first |
 | `Dwaraka/...Gothic_Fiction` | 12 Gothic **novels** (Gutenberg) | ~1M words | Syntax, cohesion, climax, mind style |
+| `taozi555/literotica-stories` | Story texts | ~645k rows (~10.8 GB) | Contemporary fiction register, dialogue |
+| `mrcedric98/fiction_books` | Book **chapters** | ~20k rows | Chapter-level narrative prose |
+| `AlekseyKorshuk/fiction-books` | BookRix **full novels** (gated) | ~4.7k books | General fiction — same schema as romance-books |
+| `molbal/horror-novel-chunks` | Pre-chunked Gutenberg horror | ~5.5k chunks | Horror register, atmosphere, pacing |
+| `ppirli/Gutenberg-Fiction` | Gutenberg **full books** | ~23k books (~4.8 GB) | Broad literary fiction baseline |
 
-`AlekseyKorshuk/romance-books` is **gated**: log in at Hugging Face, accept the dataset terms, and enable gated repos on your token before downloading.
+`AlekseyKorshuk/romance-books` and `AlekseyKorshuk/fiction-books` are **gated**: log in at Hugging Face, accept the dataset terms, and enable gated repos on your token before downloading.
 
 ## Gothic Gutenberg corpus
 

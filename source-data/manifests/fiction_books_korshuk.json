@@ -1,0 +1,11 @@
+{
+  "repo_id": "AlekseyKorshuk/fiction-books",
+  "slug": "fiction_books_korshuk",
+  "genres": ["fiction", "bookrix"],
+  "files": "data/*.parquet",
+  "text_field": "text",
+  "bookrix_metadata": true,
+  "extra_fields": ["url"],
+  "min_words": 100,
+  "notes": "4737 BookRix full novels (url + text). Gated on HF. Use convert_hf_parquet.py --chunk."
+}
