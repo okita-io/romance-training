@@ -1,0 +1,10 @@
+{
+  "repo_id": "AlekseyKorshuk/romance-books",
+  "slug": "romance_books_korshuk",
+  "genres": ["romance", "bookrix"],
+  "files": "data/*.parquet",
+  "text_field": "text",
+  "min_words": 100,
+  "extra_fields": ["url"],
+  "notes": "3548 BookRix full novels (url + text). Use convert_romance_books_korshuk.py for chunked Phase 2 input."
+}

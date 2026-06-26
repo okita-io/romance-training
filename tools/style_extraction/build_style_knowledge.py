@@ -35,7 +35,8 @@ _CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "figurative": ("figur", "metaphor", "simile", "irony", "trope", "scheme", "rhetoric"),
     "cohesion": ("cohes", "reference", "anaphora", "connect", "linking", "discourse"),
     "context": ("context", "setting", "time", "place", "tone", "atmosphere"),
-    "viewpoint": ("viewpoint", "point of view", "narrator", "perspective", "voice", "fid"),
+    "viewpoint": ("viewpoint", "point of view", "narrator", "perspective", "voice", "fid", "mind style"),
+    "textual": ("segmentation", "salience", "end-focus", "end focus", "climax", "linearity", "graphic unit", "rhythm of prose", "rhetoric of text"),
 }
 
 _MAX_CHUNK_CHARS = 3500
@@ -179,7 +180,10 @@ def build_chunks(markdown_text: str, source_file: str) -> list[dict[str, Any]]:
 
 def load_markdown(input_path: Path, pages_dir: Path | None) -> tuple[str, str]:
     if input_path.is_file():
-        return input_path.read_text(encoding="utf-8", errors="replace"), input_path.name
+        text = input_path.read_text(encoding="utf-8", errors="replace")
+        if "<PAGE>" in text:
+            return text, input_path.name
+        return text, input_path.name
 
     if pages_dir and pages_dir.is_dir():
         parts: list[str] = []
@@ -201,8 +205,18 @@ def write_knowledge_base(
     output_path: Path,
     pages_dir: Path | None = DEFAULT_PAGES_DIR,
 ) -> int:
-    text, source_label = load_markdown(input_path, pages_dir)
-    records = build_chunks(text, source_label)
+    if input_path.is_file() and "<PAGE>" in input_path.read_text(encoding="utf-8", errors="replace")[:5000]:
+        import sys
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from tools.style_extraction.manuscript_parser import parse_manuscript, sections_to_knowledge_records
+
+        text = input_path.read_text(encoding="utf-8", errors="replace")
+        sections = parse_manuscript(text)
+        records = sections_to_knowledge_records(sections, source_file=input_path.name)
+    else:
+        text, source_label = load_markdown(input_path, pages_dir)
+        records = build_chunks(text, source_label)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as fh:

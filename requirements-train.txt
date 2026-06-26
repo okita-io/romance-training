@@ -54,3 +54,6 @@ pymupdf>=1.24.0
 
 # Repo-root .env for OPENROUTER_API_KEY, LLM_* overrides
 python-dotenv>=1.0
+
+# Corpus language filtering (BookRix / HF sources)
+langdetect>=1.0.9

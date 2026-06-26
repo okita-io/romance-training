@@ -1,0 +1,558 @@
+{
+  "version": "2.0",
+  "source": "Style in Fiction — Leech & Short (2nd ed., parsed manuscript)",
+  "source_file": "Style-in-Fiction.parsed.md",
+  "framework": {
+    "levels": [
+      {
+        "id": "semantic",
+        "label": "Semantics"
+      },
+      {
+        "id": "syntax",
+        "label": "Syntax / lexigrammar"
+      },
+      {
+        "id": "phonology",
+        "label": "Phonology"
+      },
+      {
+        "id": "graphology",
+        "label": "Graphology"
+      }
+    ],
+    "parts": [
+      {
+        "id": "part_one",
+        "title": "Approaches and Methods",
+        "chapters": "1–4"
+      },
+      {
+        "id": "part_two",
+        "title": "Aspects of Style",
+        "chapters": "5–12"
+      }
+    ],
+    "analysis_layers": [
+      {
+        "id": "lexical",
+        "label": "Lexis",
+        "source": "3.1.A"
+      },
+      {
+        "id": "grammatical",
+        "label": "Grammar and syntax",
+        "source": "3.1.B"
+      },
+      {
+        "id": "figurative",
+        "label": "Figures of speech",
+        "source": "3.1.C"
+      },
+      {
+        "id": "cohesion",
+        "label": "Cohesion and context",
+        "source": "3.1.D"
+      },
+      {
+        "id": "textual",
+        "label": "Textual dynamics",
+        "source": "7.1–7.5"
+      },
+      {
+        "id": "viewpoint",
+        "label": "Viewpoint and mind style",
+        "source": "6.1–6.4"
+      }
+    ]
+  },
+  "textual_principles": [
+    {
+      "id": "end_focus",
+      "name": "Principle of End-Focus",
+      "source_section": "7.3",
+      "definition": "Given information tends to precede new information; the end of a tone or graphic unit carries communicative salience.",
+      "analysis_prompt": "Does the passage place new or emphatic information at clause/sentence ends?",
+      "metric_type": "ordinal",
+      "values": [
+        "weak",
+        "neutral",
+        "strong"
+      ]
+    },
+    {
+      "id": "segmentation",
+      "name": "Segmentation and Graphic Units",
+      "source_section": "7.4",
+      "definition": "Linear text is chunked into tone/graphic units that parcel information for the reader.",
+      "analysis_prompt": "How is the passage segmented (short vs long sentences, heavy vs light punctuation)?",
+      "metric_type": "ordinal",
+      "values": [
+        "minimal",
+        "balanced",
+        "heavy"
+      ]
+    },
+    {
+      "id": "prose_rhythm",
+      "name": "Rhythm of Prose",
+      "source_section": "7.4.1",
+      "definition": "Patterns in graphic-unit length and stress create implicit tempo.",
+      "analysis_prompt": "Is there a perceptible rhythmic pattern in sentence/graphic-unit length?",
+      "metric_type": "ordinal",
+      "values": [
+        "flat",
+        "moderate",
+        "marked"
+      ]
+    },
+    {
+      "id": "climax",
+      "name": "Principle of Climax",
+      "source_section": "7.5.2",
+      "definition": "'Last is most important' — final position tends to be the major information focus.",
+      "analysis_prompt": "Does the passage build toward a final focal element?",
+      "metric_type": "ordinal",
+      "values": [
+        "anticlimactic",
+        "neutral",
+        "climactic"
+      ]
+    },
+    {
+      "id": "subordination_salience",
+      "name": "Subordination and Backgrounding",
+      "source_section": "7.5.1",
+      "definition": "Subordinate clauses background circumstantial information; coordination gives equal weight.",
+      "analysis_prompt": "Are key events foregrounded or backgrounded via subordination/coordination?",
+      "metric_type": "ordinal",
+      "values": [
+        "flat",
+        "balanced",
+        "strategic"
+      ]
+    },
+    {
+      "id": "textual_relations",
+      "name": "Textual Relations (Given/New)",
+      "source_section": "6.4.4",
+      "definition": "How clauses link via reference, ellipsis, coordination — distinguishing old vs new information.",
+      "analysis_prompt": "How are pronouns, substitution, and conjunctions used?",
+      "metric_type": "ordinal",
+      "values": [
+        "immature",
+        "standard",
+        "artful"
+      ]
+    }
+  ],
+  "checklist": [
+    {
+      "id": "general_the_categories_are_placed_under_four_gen",
+      "group": "general",
+      "subgroup": null,
+      "prompt": "The categories are placed under four general headings: lexical categories, grammatical categories, figures of speech, and cohesion and context. Semantic categories are not listed separately, since, as suggested in section 2.9, it is easier to arrive at these through other categories; for example, we use our lexical categories to find out how choice of words involves various types of meaning. Since the purpose of the list is heuristic, there is no harm in mixing categories in this way. It is also in the nature of things that categories will overlap, so that the same feature may well be noted under different headings.",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_lexical_categories_for_notes_i_xiv_on_the_categories_see",
+      "group": "a",
+      "subgroup": "Lexical categories",
+      "prompt": "[For notes (i–xiv) on the categories see pp. 66–7]",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_general_is_the_vocabulary_simple_or_complex",
+      "group": "a",
+      "subgroup": "General",
+      "prompt": "Is the vocabulary simple or complex \\( ^{10} \\) ? formal or colloquial? descriptive or evaluative? general or specific? How far does the writer make use of the emotive and other associations of words, as opposed to their referential meaning? Does the text contain idiomatic phrases or notable collocations \\( ^{11} \\) , and if so, with what kind of dialect or register \\( ^{12} \\)  are these idioms or collocations associated? Is there any use of rare or specialised vocabulary? Are any particular morphological categories noteworthy (e.g. compound words, words with particular suffixes)? To what semantic fields do words belong?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_nouns_are_the_nouns_abstract_or_concrete_what",
+      "group": "a",
+      "subgroup": "Nouns",
+      "prompt": "Are the nouns abstract or concrete? What kinds of abstract nouns occur (e.g. nouns referring to events, perceptions, processes, moral qualities, social qualities)? What use is made of proper names? Collective nouns?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_adjectives_are_the_adjectives_frequent_to_what_kin",
+      "group": "a",
+      "subgroup": "Adjectives",
+      "prompt": "Are the adjectives frequent? To what kinds of attribute do adjectives refer? Physical? Psychological? Visual? Auditory? Colour? Referential? Emotive? Evaluative? etc. Are adjectives restrictive or non-restrictive? Gradable or non-gradable? Attributive or predicative?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_verbs_do_the_verbs_carry_an_important_part_of",
+      "group": "a",
+      "subgroup": "Verbs",
+      "prompt": "Do the verbs carry an important part of the meaning? Are they stative (referring to states) or dynamic (referring to actions, events, etc.)? Do they 'refer' to movements, physical acts, speech acts, psychological states or activities, perceptions, etc.? Are they transitive, intransitive, linking (intensive), etc.? Are they factive or non-factive \\( ^{(iv)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "a_adverbs_are_adverbs_frequent_what_semantic_func",
+      "group": "a",
+      "subgroup": "Adverbs",
+      "prompt": "Are adverbs frequent? What semantic functions do they perform (manner, place, direction, time, degree, etc.)? Is there any significant use of sentence adverbs (conjuncts such as so, therefore, however; disjuncts such as certainly, obviously, frankly) \\( ^{(v)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_sentence_types_does_the_author_use_only_statemen",
+      "group": "b",
+      "subgroup": "Sentence",
+      "prompt": "TYPES. Does the author use only statements (declarative sentences), or do questions, commands, exclamations or minor sentence types (such as sentences with no verb) also occur in the text? If these other types appear, what is their function?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_sentence_complexity_do_sentences_on_the_whole_ha",
+      "group": "b",
+      "subgroup": "Sentence",
+      "prompt": "COMPLEXITY. Do sentences on the whole have a simple or a complex structure? What is the average sentence length (in number of words)? What is the ratio of dependent to independent clauses? Does complexity vary strikingly from one sentence to another? Is complexity mainly due to (i) coordination, (ii) subordination, or (iii) parataxis (juxtaposition of clauses or other equivalent structures)? In what parts of a sentence does complexity tend to occur? For instance, is there any notable occurrence of anticipatory structure (e.g. of complex subjects preceding the verbs, of dependent clauses preceding the subject of a main clause)?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_clause_types_what_types_of_dependent_clause_ar",
+      "group": "b",
+      "subgroup": "Clause",
+      "prompt": "TYPES. What types of dependent clause are favoured: relative clauses, adverbial clauses, different types of nominal clauses (that-clauses, wh-clauses, etc.)? Are reduced or non-finite clauses commonly used and, if so, of what type are they (infinitive clauses, -ing clauses, -ed clauses, verbless clauses) \\( ^{(vi)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_clause_structure_is_there_anything_significant",
+      "group": "b",
+      "subgroup": "Clause",
+      "prompt": "STRUCTURE. Is there anything significant about clause elements (e.g. frequency of objects, complements, adverbials; of transitive or intransitive verb constructions) \\( ^{(viii)} \\) ? Are there any unusual orderings (initial adverbials, fronting of object or complement, etc.)? Do special kinds of clause construction occur (such as those with preparatory it or there)? 5 NOUN PHRASES. Are they relatively simple or complex? Where does the complexity lie (in premodification by adjectives, nouns, etc., or in postmodification by prepositional phrases, relative clauses, etc.)? Note occurrence of listings (e.g. sequences of adjectives), coordination or apposition. 6 VERB PHRASES. Are there any significant departures from the use of the simple past tense? For example, notice occurrences and functions of the present tense; of the progressive aspect (e.g. was lying); of the perfective A method of analysis and some examples aspect (e.g. has/had appeared); of modal auxiliaries (e.g. can, must, would, etc.). Look out for phrasal verbs and how they are used.",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_other_phrase_types_is_there_anything_to_be_sa",
+      "group": "b",
+      "subgroup": "Other",
+      "prompt": "PHRASE TYPES. Is there anything to be said about other phrase types: prepositional phrases, adverb phrases, adjective phrases?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_word_classes_having_already_considered_major",
+      "group": "b",
+      "subgroup": "Word",
+      "prompt": "CLASSES. Having already considered major or lexical word classes, we may here consider minor word classes ('function words'): prepositions, conjunctions, pronouns, determiners, auxiliaries, interjections. Are particular words of these types used for particular effect (e.g. the definite or indefinite article; first person pronouns I, we, etc.; demonstratives such as this and that; negative words such as not, nothing, no) \\( ^{(10)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_general_note_here_whether_any_general_types_of_g",
+      "group": "b",
+      "subgroup": "General",
+      "prompt": "Note here whether any general types of grammatical construction are used to special effect; e.g. comparative or superlative constructions; coordinative or listing constructions; parenthetical constructions; appended or interpolated structures such as occur in casual speech. Do lists and coordinations (e.g. lists of nouns) tend to occur with two, three or more than three members? Do the coordinations, unlike the standard construction with one conjunction (sun, moon and stars), tend to omit conjunctions (sun, moon, stars) or have more than one conjunction (sun and moon and stars)?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "c_figures_of_speech_etc_here_we_consider_the_incidence_of_featur",
+      "group": "c",
+      "subgroup": "Figures of speech, etc.",
+      "prompt": "Here we consider the incidence of features which are foregrounded (see section 1.4) by virtue of departing in some way from general norms of communication by means of the language code; for example, exploitation of regularities of formal patterning, or of deviations from the linguistic code. For identifying such features, the traditional figures of speech (schemes and tropes) are often useful categories.",
+      "source_section": "3.1"
+    },
+    {
+      "id": "c_grammatical_and_lexical_are_there_any_cases_of_form",
+      "group": "c",
+      "subgroup": "Grammatical",
+      "prompt": "AND LEXICAL. Are there any cases of formal and structural repetition (anaphora, parallelism, etc.) or of mirror-image patterns (chiasmus)? Is the rhetorical effect of these one of antithesis, reinforcement, climax, anticlimax, etc. \\( ^{(9)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "c_phonological_schemes_are_there_any_phonological_patt",
+      "group": "c",
+      "subgroup": "Phonological",
+      "prompt": "SCHEMES. Are there any phonological patterns of rhyme, alliteration, assonance, etc.? Are there any salient rhythmical patterns? Do vowel and consonant sounds pattern or cluster in particular ways? How do these phonological features interact with meaning \\( ^{(10)} \\) ?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "c_tropes_are_there_any_obvious_violations_of_or",
+      "group": "c",
+      "subgroup": "Tropes",
+      "prompt": "Are there any obvious violations of, or departures from, the linguistic code? For example, are there any neologisms (such as Americanity)? Deviant lexical collocations (such as portentous infants)? Semantic, syntactic, phonological, or graphological deviations? Such deviations (although they can occur in everyday speech and writing) will often be the clue to special interpretations associated with traditional poetic figures of speech such as metaphor, metonymy, synecdoche, paradox and irony \\( ^{(xiii)} \\) . If such tropes occur, what kind of special interpretation is involved (e.g. metaphors can be classified as personifying, animising, concretising, synaesthetic, etc.)? Because of its close connection with metaphor, simile may also be considered here. Does the text contain any similes, or similar constructions (e.g. 'as if' constructions)? What dissimilar semantic fields are related through simile?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "d_context_and_cohesion_finally_we_take_a_preliminary_look_at_f",
+      "group": "d",
+      "subgroup": "Context and cohesion",
+      "prompt": "Finally, we take a preliminary look at features which will be more fully dealt with in Chapters 7 to 10. Under COHESION, ways in which one part of a text is linked to another are considered: for example, the ways in which sentences are connected. This is the internal organisation of the text. Under CONTEXT (see the discussion of discourse situation in section 8.1) we consider the external relations of a text or a part of a text, seeing it as a discourse presupposing a social relation between its participants (author and reader; character and character, etc.), and a sharing by participants of knowledge and assumptions.",
+      "source_section": "3.1"
+    },
+    {
+      "id": "d_cohesion_43_does_the_text_contain_lo",
+      "group": "d",
+      "subgroup": "Cohesion",
+      "prompt": "\\( ^{[43]} \\) . Does the text contain logical or other links between sentences (e.g. coordinating conjunctions, or linking adverbials)? Or does it tend to rely on implicit connections of meaning? What sort of use is made of cross-reference by pronouns (she, it, they, etc.)? by substitute forms (do, so, etc.), or ellipsis? Alternatively, is any use made of elegant variation – the avoidance of repetition by the substitution of a descriptive phrase (as, for example, 'the old lawyer' or 'her uncle' may substitute for the repetition of an earlier 'Mr Jones')? Are meaning connections reinforced by repetition of words and phrases, or by repeatedly using words from the same semantic field?",
+      "source_section": "3.1"
+    },
+    {
+      "id": "d_context_does_the_writer_address_the_reader_direc",
+      "group": "d",
+      "subgroup": "Context",
+      "prompt": "Does the writer address the reader directly, or through the words or thoughts of some fictional character? What linguistic clues (e.g. first-person pronouns I, me, my, mine) are there of the addresser-addressee relationship? What attitude does the author imply towards his or her subject? If a character's words or thoughts are represented, is this done by direct quotation (direct speech), or by some other method (e.g. indirect speech, free indirect speech)\\(^{(vii)}\\)? Are there significant changes of style according to who is supposedly speaking or thinking the words on the page?",
+      "source_section": "3.1"
+    }
+  ],
+  "categories": {
+    "lexical": "Vocabulary and register (Section 3.1.A)",
+    "grammatical": "Syntax and sentence structure (Section 3.1.B)",
+    "figurative": "Figures of speech (Section 3.1.C)",
+    "cohesion": "Cohesion and textual relations (Section 3.1.D, Ch. 7)",
+    "context": "Tone and speech presentation (Section 3.1.D)",
+    "viewpoint": "POV and mind style (Ch. 6, 10)",
+    "textual": "Segmentation, rhythm, climax (Ch. 7)"
+  },
+  "dimensions": [
+    {
+      "id": "lexical_complexity",
+      "category": "lexical",
+      "name": "Lexical Complexity",
+      "source_section": "3.1.A",
+      "definition": "Vocabulary simplicity/complexity, register, collocation, semantic fields.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "simple_colloquial",
+        "neutral",
+        "complex_literary"
+      ],
+      "scoring": {
+        "low": "Simple colloquial",
+        "mid": "Standard narrative",
+        "high": "Complex literary"
+      }
+    },
+    {
+      "id": "lexical_density",
+      "category": "lexical",
+      "name": "Lexical Density",
+      "definition": "Proportion of content words to total words.",
+      "computation": "computable",
+      "metric_type": "continuous",
+      "values": "0.0 – 1.0",
+      "scoring": {
+        "low": "< 0.40",
+        "mid": "0.40–0.60",
+        "high": "> 0.60"
+      }
+    },
+    {
+      "id": "register",
+      "category": "lexical",
+      "name": "Register",
+      "definition": "Situation-appropriate language variety.",
+      "computation": "llm",
+      "metric_type": "categorical",
+      "values": [
+        "formal_literary",
+        "formal_technical",
+        "neutral_narrative",
+        "colloquial",
+        "dialect",
+        "archaic"
+      ],
+      "scoring": {
+        "low": "colloquial",
+        "mid": "neutral",
+        "high": "formal_literary"
+      }
+    },
+    {
+      "id": "sentence_complexity",
+      "category": "grammatical",
+      "name": "Sentence Complexity",
+      "source_section": "3.1.B.2",
+      "definition": "Simple vs complex structure; coordination vs subordination vs parataxis.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "simple_paratactic",
+        "moderate",
+        "complex_hypotactic"
+      ],
+      "scoring": {
+        "low": "Simple paratactic",
+        "mid": "Mixed",
+        "high": "Complex hypotactic"
+      }
+    },
+    {
+      "id": "sentence_length_mean",
+      "category": "grammatical",
+      "name": "Mean Sentence Length",
+      "definition": "Average words per sentence.",
+      "computation": "computable",
+      "metric_type": "continuous",
+      "values": "word count",
+      "scoring": {
+        "low": "< 12",
+        "mid": "12–25",
+        "high": "> 25"
+      }
+    },
+    {
+      "id": "subordination_ratio",
+      "category": "grammatical",
+      "name": "Subordination Ratio",
+      "definition": "Proxy for hypotactic complexity.",
+      "computation": "computable",
+      "metric_type": "continuous",
+      "values": "0.0 – 0.1",
+      "scoring": {
+        "low": "< 0.01",
+        "mid": "0.01–0.03",
+        "high": "> 0.03"
+      }
+    },
+    {
+      "id": "figurative_density",
+      "category": "figurative",
+      "name": "Figurative Language",
+      "source_section": "3.1.C",
+      "definition": "Tropes and schemes: metaphor, simile, irony, parallelism.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "low",
+        "moderate",
+        "high"
+      ],
+      "scoring": {
+        "low": "Plain",
+        "mid": "Occasional",
+        "high": "Dense"
+      }
+    },
+    {
+      "id": "cohesion",
+      "category": "cohesion",
+      "name": "Cohesion",
+      "source_section": "3.1.D.1",
+      "definition": "Links between sentences: conjunctions, reference, substitution, ellipsis.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "loose",
+        "standard",
+        "tight"
+      ],
+      "scoring": {
+        "low": "Loose",
+        "mid": "Standard",
+        "high": "Tight or artful"
+      }
+    },
+    {
+      "id": "mind_style",
+      "category": "viewpoint",
+      "name": "Mind Style",
+      "source_section": "6.1",
+      "definition": "Worldview encoded in language — conceptualisation of experience.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "standard",
+        "distinct",
+        "deviant"
+      ],
+      "scoring": {
+        "low": "Standard",
+        "mid": "Distinct",
+        "high": "Deviant"
+      }
+    },
+    {
+      "id": "pov",
+      "category": "viewpoint",
+      "name": "Narrative Point of View",
+      "source_section": "3.1.D.2",
+      "definition": "Grammatical person and access to interiority.",
+      "computation": "llm",
+      "metric_type": "categorical",
+      "values": [
+        "first_person",
+        "second_person",
+        "third_limited",
+        "third_omniscient",
+        "mixed"
+      ],
+      "scoring": {}
+    },
+    {
+      "id": "narrative_distance",
+      "category": "viewpoint",
+      "name": "Narrative Distance",
+      "definition": "Psychological proximity of narrator to characters and events.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "intimate",
+        "moderate",
+        "distant"
+      ],
+      "scoring": {
+        "low": "distant",
+        "mid": "moderate",
+        "high": "intimate"
+      }
+    },
+    {
+      "id": "free_indirect_discourse",
+      "category": "viewpoint",
+      "name": "Free Indirect Discourse",
+      "source_section": "3.1.D.2",
+      "definition": "Blending of narrator and character voice.",
+      "computation": "llm",
+      "metric_type": "ordinal",
+      "values": [
+        "none",
+        "sparse",
+        "moderate",
+        "heavy"
+      ],
+      "scoring": {}
+    },
+    {
+      "id": "tone",
+      "category": "context",
+      "name": "Tone",
+      "source_section": "3.1.D.2",
+      "definition": "Affective and attitudinal register.",
+      "computation": "llm",
+      "metric_type": "categorical",
+      "values": [
+        "neutral",
+        "lyrical",
+        "sardonic",
+        "melancholic",
+        "comedic",
+        "tense",
+        "contemplative"
+      ],
+      "scoring": {}
+    },
+    {
+      "id": "dialogue_ratio",
+      "category": "grammatical",
+      "name": "Dialogue Ratio",
+      "definition": "Proportion of direct speech.",
+      "computation": "computable",
+      "metric_type": "continuous",
+      "values": "0.0 – 1.0",
+      "scoring": {
+        "low": "< 0.05",
+        "mid": "0.05–0.30",
+        "high": "> 0.30"
+      }
+    }
+  ],
+  "stats": {
+    "sections": 162,
+    "knowledge_chunks": 231,
+    "checklist_items": 21,
+    "dimensions": 14,
+    "textual_principles": 6
+  }
+}

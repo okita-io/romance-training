@@ -20,7 +20,11 @@ import sys
 from pathlib import Path
 from typing import Any, Iterator
 
-from unified_corpus import (
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.data_preparation.unified_corpus import (
     AUTHOR_FIELD_CANDIDATES,
     GENRE_FIELD_CANDIDATES,
     TITLE_FIELD_CANDIDATES,
@@ -35,7 +39,6 @@ from unified_corpus import (
     slug_from_repo_id,
 )
 
-ROOT = Path(__file__).resolve().parents[2]
 HF_ROOT = ROOT / "source-data" / "hf"
 MANIFESTS = ROOT / "source-data" / "manifests"
 DEFAULT_OUTPUT = ROOT / "source-data" / "unified" / "fiction_corpus.jsonl"

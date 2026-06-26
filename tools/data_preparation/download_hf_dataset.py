@@ -8,9 +8,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from unified_corpus import repo_dir_name, slug_from_repo_id
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.data_preparation.unified_corpus import repo_dir_name, slug_from_repo_id
 HF_ROOT = ROOT / "source-data" / "hf"
 MANIFESTS = ROOT / "source-data" / "manifests"
 

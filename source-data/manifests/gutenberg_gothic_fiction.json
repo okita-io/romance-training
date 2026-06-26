@@ -1,0 +1,8 @@
+{
+  "repo_id": "Dwaraka/Training_Dataset_of_Project_Gutebberg_Gothic_Fiction",
+  "slug": "gutenberg_gothic_fiction",
+  "genres": ["gothic", "fiction", "project_gutenberg"],
+  "files": "TRAINING_CORPUS.txt",
+  "format": "gutenberg_concat",
+  "notes": "12 Gothic novels in one text file. Use convert_gutenberg_gothic.py, not convert_hf_sources.py."
+}

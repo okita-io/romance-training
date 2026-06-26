@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Phase 1: Extract style taxonomy from Style in Fiction (Leech & Short) PDF.
-Produces: source/style_rubric.json
+Phase 1C: Extract style taxonomy from Style in Fiction (Leech & Short).
 
-Usage:
+Preferred when parsed markdown exists (no LLM):
+    python tools/style_extraction/distill_style_system.py --force
+
+Legacy LLM extraction from PDF/knowledge:
     python tools/style_extraction/extract_rubric.py
-    python tools/style_extraction/extract_rubric.py --skip-pdf   # reuse existing markdown
-    python tools/style_extraction/extract_rubric.py --model llama3.2:latest
+    python tools/style_extraction/extract_rubric.py --skip-pdf --use-knowledge
+
+Produces: source/style_rubric.json
 """
 
 from __future__ import annotations

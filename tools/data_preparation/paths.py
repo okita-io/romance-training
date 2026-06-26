@@ -31,8 +31,10 @@ def project_gutenberg_source() -> Path:
 # --- Style pipeline paths ---
 
 STYLE_RUBRIC = REPO_ROOT / "source" / "style_rubric.json"
+STYLE_ANALYSIS_SYSTEM = REPO_ROOT / "source" / "extracted" / "style_analysis_system.json"
 STYLE_KNOWLEDGE = REPO_ROOT / "source" / "extracted" / "style_knowledge.jsonl"
 STYLE_MARKDOWN = REPO_ROOT / "source" / "extracted" / "Style-in-Fiction.md"
+STYLE_PARSED = REPO_ROOT / "source" / "Style-in-Fiction.parsed.md"
 GUTENBERG_STYLED = IN_REPO_CORPUS / "gutenberg_styled.jsonl"
 STYLE_TRAINING_DIR = REPO_ROOT / "train" / "style_training"
 STYLE_TRAIN = STYLE_TRAINING_DIR / "train.jsonl"
@@ -44,6 +46,9 @@ SOURCE_DATA = REPO_ROOT / "source-data"
 HF_SOURCE_ROOT = SOURCE_DATA / "hf"
 HF_MANIFESTS = SOURCE_DATA / "manifests"
 UNIFIED_FICTION_CORPUS = SOURCE_DATA / "unified" / "fiction_corpus.jsonl"
+ROMANCE_32K_PROCESSED = SOURCE_DATA / "processed" / "romance_books_32k"
+ROMANCE_32K_STORIES = ROMANCE_32K_PROCESSED / "stories.jsonl"
+ROMANCE_32K_CHUNKS = ROMANCE_32K_PROCESSED / "chunks.jsonl"
 
 
 def unified_fiction_corpus() -> Path:

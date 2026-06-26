@@ -36,6 +36,16 @@ _DIMENSION_CATEGORIES: dict[str, str] = {
     "sentence_variety": "grammatical",
     "dialogue_style": "grammatical",
     "imagery_type": "figurative",
+    "lexical_complexity": "lexical",
+    "sentence_complexity": "grammatical",
+    "cohesion": "cohesion",
+    "mind_style": "viewpoint",
+    "end_focus": "textual",
+    "segmentation": "textual",
+    "prose_rhythm": "textual",
+    "climax": "textual",
+    "subordination_salience": "textual",
+    "textual_relations": "cohesion",
 }
 
 _TOKEN_RE = re.compile(r"[a-z]{3,}")
@@ -189,9 +199,14 @@ def build_classification_context(
     """Assemble Leech & Short reference context for LLM style classification."""
     rubric = rubric or load_rubric()
     llm_dims = [
+        d["id"]
+        for d in (rubric or {}).get("dimensions", [])
+        if d.get("computation") == "llm"
+    ] if rubric else [
         "register", "pov", "narrative_distance", "free_indirect_discourse",
         "figurative_density", "tone", "temporal_structure",
         "sentence_variety", "dialogue_style", "imagery_type",
+        "lexical_complexity", "sentence_complexity", "cohesion", "mind_style",
     ]
 
     sections: list[str] = []
