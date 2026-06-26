@@ -2,6 +2,8 @@
 
 Raw fiction corpora downloaded from Hugging Face and other sources, plus scripts to merge them into one JSONL for the style pipeline.
 
+**GPU machine setup (clone → HF download → classify → train):** see [`docs/GPU_RUNBOOK.md`](../docs/GPU_RUNBOOK.md).
+
 ## Layout
 
 ```
@@ -13,6 +15,7 @@ source-data/
 │   ├── romance_books_korshuk.json
 │   └── gutenberg_gothic_fiction.json
 ├── processed/          # Per-dataset extractions (gitignored)
+│   ├── romance_books_korshuk/
 │   ├── romance_books_32k/
 │   └── gutenberg_gothic_fiction/
 ├── hf/                 # Raw HF downloads (gitignored)

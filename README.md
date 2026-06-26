@@ -63,6 +63,21 @@ train/
     └── validation.jsonl
 ```
 
+## Fresh clone on a GPU machine (RTX 3090)
+
+After `git pull`, HF datasets are **not** in the repo — download and convert them locally, then run Phases 2–4. Phase 1 rubric/knowledge **is** already committed (`source/style_rubric.json`, `source/extracted/style_knowledge.jsonl`).
+
+**Full step-by-step:** [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) — HF auth, recommended corpora (Korshuk + Gothic + 32K blurbs), resumable multi-day classification, merge, train.
+
+```bash
+hf auth login
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/romance-books
+python tools/data_preparation/convert_romance_books_korshuk.py --chunk
+python tools/style_classification/run_pipeline.py \
+  --input source-data/processed/romance_books_korshuk/chunks.jsonl \
+  --output train/romance_corpus/korshuk_styled.jsonl
+```
+
 ## Setup
 
 Python **3.12** recommended. CUDA GPU required for training (tested on RTX 3090, 24 GB).
@@ -317,7 +332,7 @@ Known gaps in the repo and concrete tasks to close them. Use this as a backlog w
 |-----|------|
 | PDF lives in `style-guide/` but pipeline reads `source/` | Documented above — `cp style-guide/Style-in-Fiction.pdf source/` |
 | `train/romance_corpus/gutenberg_romance.jsonl` is gitignored and not shipped | Add a corpus builder script (e.g. `tools/data_preparation/build_gutenberg_jsonl.py`) that reads bundled `train/romance_corpus/gutenberg/*.txt` and writes the expected JSONL schema |
-| No single **Quick start** block tying all phases together | See run order in `AGENTS.md` and Phase 1A–4 sections above |
+| No single **Quick start** block tying all phases together | See [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) and run order in `AGENTS.md` |
 
 ### Pipeline and tooling
 

@@ -4,6 +4,8 @@
 
 See `README.md` for the full pipeline, layout, and backlog.
 
+**Fresh clone on the 3090:** `docs/GPU_RUNBOOK.md` — HF downloads, corpus conversion, resumable Phase 2, training.
+
 ## Development environment
 
 - Python **3.12** recommended (3.10+ minimum).
@@ -49,8 +51,9 @@ python tools/style_extraction/pdf_vision_harness.py --disable-thinking --concat
 # Phase 1B — markdown → RAG knowledge base
 python tools/style_extraction/build_style_knowledge.py
 
-# Phase 1C — knowledge → rubric (review source/style_rubric.json)
-python tools/style_extraction/extract_rubric.py --skip-pdf --use-knowledge
+# Phase 1C — rubric already in repo; regenerate only if needed:
+python tools/style_extraction/distill_style_system.py --force
+# Legacy LLM path: extract_rubric.py --skip-pdf --use-knowledge
 
 # Phase 2 — classify corpus (sentence-boundary chunks; RAG context when LLM enabled)
 python tools/style_classification/run_pipeline.py
