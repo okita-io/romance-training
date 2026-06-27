@@ -36,7 +36,7 @@ def classify(
     text: str,
     rubric: dict | None = None,
     use_llm: bool = True,
-    llm_model: str = "llama3.1:8b",
+    llm_model: str | None = None,
 ) -> dict[str, Any]:
     """
     Return a full style_profile for the given text passage.
@@ -45,12 +45,16 @@ def classify(
         text:      Prose passage to classify.
         rubric:    Pre-loaded rubric dict (loaded from disk if None).
         use_llm:   Run LLM-based semantic metrics (slower; ~2-5s per passage).
-        llm_model: Ollama model name.
+        llm_model: Ollama / LM Studio model name (defaults to LLM_MODEL env).
 
     Returns:
         Flat dict of all computed metrics.
     """
+    from tools.llm_client import DEFAULT_MODEL
     from tools.style_classification.metrics_computable import compute
+
+    if llm_model is None:
+        llm_model = DEFAULT_MODEL
 
     profile: dict[str, Any] = compute(text)
 
@@ -70,7 +74,7 @@ def _main() -> None:
     parser = argparse.ArgumentParser(description="Classify a prose passage for style")
     parser.add_argument("--file", type=Path, help="Text file to classify (default: stdin)")
     parser.add_argument("--no-llm", action="store_true")
-    parser.add_argument("--model", default="llama3.1:8b")
+    parser.add_argument("--model", default=None, help="LLM model (default: LLM_MODEL env)")
     args = parser.parse_args()
 
     if args.file:
@@ -78,7 +82,9 @@ def _main() -> None:
     else:
         text = sys.stdin.read()
 
-    profile = classify(text, use_llm=not args.no_llm, llm_model=args.model)
+    from tools.llm_client import DEFAULT_MODEL
+
+    profile = classify(text, use_llm=not args.no_llm, llm_model=args.model or DEFAULT_MODEL)
     print(json.dumps(profile, indent=2))
 
 

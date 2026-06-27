@@ -51,10 +51,16 @@ DEFAULT_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:1234/v1")
 DEFAULT_API_KEY = os.environ.get("LLM_API_KEY", "lm-studio")
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "local-model")
 DEFAULT_VISION_MODEL = os.environ.get("LLM_VISION_MODEL", DEFAULT_MODEL)
+DISABLE_THINKING = os.environ.get("LLM_DISABLE_THINKING", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_NEMOTRON_VISION = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-LM_STUDIO_REMOTE_DEFAULT = os.environ.get("LM_STUDIO_BASE_URL", "http://10.0.1.7:1234/v1")
+LM_STUDIO_REMOTE_DEFAULT = os.environ.get("LM_STUDIO_BASE_URL", "http://127.0.0.1/:1234/v1")
 
 
 def pick_vision_model(model_ids: list[str], explicit: str | None = None) -> str:
@@ -137,7 +143,7 @@ def _extract_assistant_text(body: dict[str, Any]) -> str:
         if isinstance(val, str) and val.strip():
             return val
 
-    # Some OpenRouter reasoning models populate `reasoning` when content is empty.
+    # OpenRouter reasoning models may use `reasoning` when content is empty.
     reasoning = msg.get("reasoning")
     if isinstance(reasoning, str) and reasoning.strip():
         return reasoning
@@ -239,6 +245,10 @@ def complete(
     Send a chat completion request and return the assistant message as a string.
     Raises LLMError on connection failure or non-200 response.
     """
+    body = extra_body
+    if body is None and DISABLE_THINKING:
+        body = {"chat_template_kwargs": {"enable_thinking": False}}
+
     return _chat_completion(
         model=model,
         messages=[
@@ -251,7 +261,7 @@ def complete(
         max_tokens=max_tokens,
         timeout=timeout,
         stop=stop,
-        extra_body=extra_body,
+        extra_body=body,
         extra_headers=extra_headers,
         max_retries=max_retries,
     )

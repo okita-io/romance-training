@@ -194,6 +194,7 @@ python tools/style_classification/run_pipeline.py \
 |------|-------------|
 | *(default)* | Full LLM labels — register, POV, tone, textual principles + computable metrics |
 | `--no-llm --workers 8` | Fast baseline (~14 rec/s) — spaCy/textstat only |
+| `--workers 4` | Parallel LLM requests — match LM Studio concurrent slot count |
 | `--llm-sample-rate 0.2` | LLM on 20% of chunks; rest computable-only |
 | `--limit 50` | Smoke test |
 | `--no-resume` | Rebuild output from scratch |

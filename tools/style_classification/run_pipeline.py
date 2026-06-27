@@ -22,6 +22,11 @@ Usage:
 
     # Parallel workers (computable-only mode)
     python tools/style_classification/run_pipeline.py --no-llm --workers 8
+
+    # Parallel LLM requests (LM Studio with multiple slots, e.g. --workers 4)
+    python tools/style_classification/run_pipeline.py --workers 4 \\
+        --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
+        --output train/romance_corpus/horror_styled.jsonl
 """
 
 from __future__ import annotations
@@ -30,7 +35,9 @@ import argparse
 import json
 import random
 import sys
+import threading
 import time
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -43,6 +50,59 @@ DEFAULT_OUTPUT = ROOT / "train" / "romance_corpus" / "gutenberg_styled.jsonl"
 
 CHUNK_WORDS = 500
 CHUNK_OVERLAP_SENTENCES = 2
+THROUGHPUT_WINDOW = 30
+
+
+class _ProgressTracker:
+    """Wall-clock throughput from completion timestamps (works with parallel workers)."""
+
+    def __init__(self, total: int, *, window: int = THROUGHPUT_WINDOW) -> None:
+        self.total = total
+        self.processed = 0
+        self.t0 = time.time()
+        self.window = window
+        self._times: deque[float] = deque(maxlen=window)
+        self._last: float | None = None
+
+    def mark_done(self) -> tuple[float | None, float, float]:
+        """Return (seconds since last completion, rec/s, eta seconds)."""
+        now = time.time()
+        interval = None if self._last is None else now - self._last
+        self._last = now
+        self._times.append(now)
+        self.processed += 1
+
+        if len(self._times) >= 2:
+            span = self._times[-1] - self._times[0]
+            throughput = (len(self._times) - 1) / max(span, 0.01)
+        else:
+            throughput = self.processed / max(now - self.t0, 0.01)
+
+        remain = self.total - self.processed
+        eta_sec = remain / max(throughput, 0.001)
+        return interval, throughput, eta_sec
+
+    def snapshot(self) -> tuple[int, float, float]:
+        """Return (processed, rec/s, eta seconds) using the same throughput logic."""
+        remain = self.total - self.processed
+        now = time.time()
+        if len(self._times) >= 2:
+            span = self._times[-1] - self._times[0]
+            throughput = (len(self._times) - 1) / max(span, 0.01)
+        elif self.processed >= 1:
+            throughput = self.processed / max(now - self.t0, 0.01)
+        else:
+            throughput = 0.001
+        eta_sec = remain / max(throughput, 0.001)
+        return self.processed, throughput, eta_sec
+
+    def format_progress(self, interval: float | None, throughput: float, eta_sec: float) -> str:
+        parts = [f"classified {self.processed}/{self.total}", f"{self.total - self.processed} remain"]
+        if interval is not None:
+            parts.append(f"interval {interval:.1f}s")
+        parts.append(f"{throughput:.2f} rec/s")
+        parts.append(f"~{eta_sec / 60:.0f} min left")
+        return " | ".join(parts)
 
 
 def _chunk_record(record: dict) -> list[dict]:
@@ -62,6 +122,36 @@ def _record_key(record: dict) -> str:
     chunk = m.get("chunk_index", 0)
     text_sig = record.get("text", "")[:60]
     return f"{source}|{chunk}|{text_sig}"
+
+
+def _record_label(record: dict) -> str:
+    """Short human-readable label for progress logs."""
+    m = record.get("metadata", {})
+    parts: list[str] = []
+    if m.get("source"):
+        parts.append(str(m["source"]))
+    if m.get("chunk_index") is not None:
+        parts.append(f"chunk:{m['chunk_index']}")
+    elif m.get("story_key"):
+        parts.append(str(m["story_key"]))
+    if m.get("source_file"):
+        parts.append(str(m["source_file"]))
+    if m.get("title"):
+        parts.append(str(m["title"])[:60])
+    if not parts:
+        preview = record.get("text", "")[:50].replace("\n", " ").strip()
+        parts.append(f'"{preview}..."')
+    return " | ".join(parts)
+
+
+def _profile_hint(record: dict) -> str:
+    profile = record.get("metadata", {}).get("style_profile", {})
+    if not isinstance(profile, dict):
+        return ""
+    register = profile.get("register")
+    if register:
+        return f"register={register}"
+    return ""
 
 
 def _enrich(
@@ -97,6 +187,7 @@ def run(
     limit: int | None = None,
     resume: bool = True,
     seed: int = 42,
+    quiet: bool = False,
 ) -> None:
     random.seed(seed)
 
@@ -128,7 +219,7 @@ def run(
     pre_chunk = len(records)
     records = [chunk for r in records for chunk in _chunk_record(r)]
     if len(records) != pre_chunk:
-        print(f"Chunked {pre_chunk} records → {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)")
+        print(f"Chunked {pre_chunk} records -> {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)")
     print(f"Total records: {len(records)}")
 
     # Resume: collect already-processed keys
@@ -164,50 +255,63 @@ def run(
             f"LLM analysis: {len(llm_indices)}/{len(to_process)} records "
             f"({100 * len(llm_indices) // len(to_process)}%)"
         )
+        if workers > 1:
+            print(f"Parallel LLM workers: {workers}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    t0 = time.time()
-    processed = 0
+    progress = _ProgressTracker(total=len(to_process))
+
+    def _log_classified(result: dict) -> None:
+        interval, throughput, eta_sec = progress.mark_done()
+        label = _record_label(result)
+        hint = _profile_hint(result)
+        suffix = f" | {hint}" if hint else ""
+        print(f"[{progress.format_progress(interval, throughput, eta_sec)}] {label}{suffix}", flush=True)
 
     def _flush_progress() -> None:
-        elapsed = time.time() - t0
-        rate = processed / max(elapsed, 0.01)
-        remaining = (len(to_process) - processed) / max(rate, 0.001)
+        done, throughput, eta_sec = progress.snapshot()
         print(
-            f"  {processed:>6}/{len(to_process)} "
-            f"| {rate:>5.1f} rec/s "
-            f"| ~{remaining / 60:>4.0f} min remaining",
+            f"  {done:>6}/{progress.total} "
+            f"| {throughput:>5.2f} rec/s "
+            f"| ~{eta_sec / 60:>4.0f} min remaining",
             flush=True,
         )
 
     with open(output_path, "a", encoding="utf-8") as out_fh:
-        if workers > 1 and not use_llm:
-            # Parallel path — computable metrics only, thread-safe
+        write_lock = threading.Lock()
+
+        def _write_result(result: dict) -> None:
+            with write_lock:
+                out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+                if quiet:
+                    progress.mark_done()
+                    if progress.processed % (50 if use_llm else 200) == 0:
+                        _flush_progress()
+                else:
+                    _log_classified(result)
+                out_fh.flush()
+
+        if workers > 1:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = {
-                    pool.submit(_enrich, r, rubric, False, llm_model): i
-                    for i, r in enumerate(to_process)
+                    pool.submit(
+                        _enrich,
+                        record,
+                        rubric,
+                        use_llm and (i in llm_indices),
+                        llm_model,
+                    ): i
+                    for i, record in enumerate(to_process)
                 }
                 for future in as_completed(futures):
-                    result = future.result()
-                    out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
-                    processed += 1
-                    if processed % 200 == 0:
-                        _flush_progress()
-                        out_fh.flush()
+                    _write_result(future.result())
         else:
-            # Sequential path — required when Ollama is involved (single GPU)
             for i, record in enumerate(to_process):
                 do_llm = use_llm and (i in llm_indices)
-                result = _enrich(record, rubric, do_llm, llm_model)
-                out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
-                processed += 1
-                if processed % 100 == 0:
-                    _flush_progress()
-                    out_fh.flush()
+                _write_result(_enrich(record, rubric, do_llm, llm_model))
 
-    elapsed = time.time() - t0
-    print(f"\nDone. {processed} records in {elapsed / 60:.1f} min → {output_path}")
+    elapsed = time.time() - progress.t0
+    print(f"\nDone. {progress.processed} records in {elapsed / 60:.1f} min -> {output_path}")
     print("Next: python tools/training_formats/generate_instruction_pairs.py")
 
 
@@ -226,9 +330,19 @@ def main() -> None:
         "--llm-sample-rate", type=float, default=1.0,
         help="Fraction of records to run LLM on (0.0–1.0). Default: 1.0",
     )
-    parser.add_argument("--workers", type=int, default=1, help="Threads (computable-only mode)")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel threads (LLM or computable). Match LM Studio concurrent slots (e.g. 4).",
+    )
     parser.add_argument("--limit", type=int, help="Process only first N records (for testing)")
     parser.add_argument("--no-resume", action="store_true", help="Overwrite output")
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Log every 50/200 records instead of each classified chunk",
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -257,6 +371,7 @@ def main() -> None:
         limit=args.limit,
         resume=not args.no_resume,
         seed=args.seed,
+        quiet=args.quiet,
     )
 
 

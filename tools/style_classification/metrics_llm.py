@@ -166,7 +166,7 @@ def assess(
         rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
 
     defaults = _defaults(rubric)
-    max_tokens = min(512, 64 + 24 * len(defaults))
+    max_tokens = 8192
 
     try:
         raw = llm_complete(
@@ -175,7 +175,6 @@ def assess(
             model=model,
             max_tokens=max_tokens,
             temperature=0.05,
-            stop=["\n\n"],
         )
     except LLMError as exc:
         sys.stderr.write(f"  LLM metrics skipped: {exc}\n")

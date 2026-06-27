@@ -256,6 +256,9 @@ python tools/style_classification/run_pipeline.py --llm-sample-rate 0.2
 # Parallel workers for computable-only mode
 python tools/style_classification/run_pipeline.py --no-llm --workers 8
 
+# Parallel LLM requests when LM Studio allows multiple slots (e.g. 4)
+python tools/style_classification/run_pipeline.py --workers 4
+
 # Test on a few records first
 python tools/style_classification/run_pipeline.py --no-llm --limit 50
 ```
