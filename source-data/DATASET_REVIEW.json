@@ -1,0 +1,2312 @@
+[
+  {
+    "dir": "AlekseyKorshuk__fiction-books",
+    "repo_id": "AlekseyKorshuk/fiction-books",
+    "manifest_slug": "fiction_books_korshuk",
+    "size_mb": 253.8,
+    "manifest_notes": "4737 BookRix full novels (url + text). Gated on HF. Use convert_hf_parquet.py --chunk.",
+    "text_field": "text",
+    "genres": [
+      "fiction",
+      "bookrix"
+    ],
+    "files": [
+      {
+        "file": "train-00000-of-00001.parquet",
+        "rows": 4737,
+        "columns": [
+          "url",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 8,
+        "words_median": 1320,
+        "words_max": 354800,
+        "samples": [
+          {
+            "text": "M.B. Julien Anthology Complex BookRix GmbH & Co. KG 81371 Munich       Start         This book was distributed courtesy of:           For your own Unlimited Reading and FREE eBooks…"
+          },
+          {
+            "text": "Jason Miranda With Eyes Closed The Color Of Drowning              With Eyes Closed...  An Intimate Tale By:  Jason Miranda  Regret...     “I love you.” You say in a tone that pierc…"
+          },
+          {
+            "text": "Cory Doctorow Little Brother For Alice, who makes me whole.                  CONTENTS - LITTLE BROTHER             chapter 1  chapter 2  chapter 3  chapter 4  chapter 5  chapter 6 …"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "AlekseyKorshuk__romance-books",
+    "repo_id": "AlekseyKorshuk/romance-books",
+    "manifest_slug": "romance_books_korshuk",
+    "size_mb": 262.6,
+    "manifest_notes": "3548 BookRix full novels (url + text). Use convert_romance_books_korshuk.py for chunked Phase 2 input.",
+    "text_field": "text",
+    "genres": [
+      "romance",
+      "bookrix"
+    ],
+    "files": [
+      {
+        "file": "train-00000-of-00001.parquet",
+        "rows": 3548,
+        "columns": [
+          "url",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 8,
+        "words_median": 3198,
+        "words_max": 305600,
+        "samples": [
+          {
+            "text": "Nidhi Agrawal A cute love story a story of a girl this book is dedicated to my mother who always guided me to the right path.             Contents            1 entry in b-school  2…"
+          },
+          {
+            "text": "Lorelei Sutton A Howl In The Night       Suicidal Beginnings    The wind swirls around a stick-thin girl, shoving the rain into her face so that it slaps at her cheeks. She is minu…"
+          },
+          {
+            "text": "Katy Wong Arranged (Completed)        Prologue        ~~   I stared down at my daughter that lay asleep in my arm.   I blinked several times, trying to make the tears go away.   “I…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "Dwaraka__Training_Dataset_of_Project_Gutebberg_Gothic_Fiction",
+    "repo_id": "Dwaraka/Training_Dataset_of_Project_Gutebberg_Gothic_Fiction",
+    "manifest_slug": "gutenberg_gothic_fiction",
+    "size_mb": 5.2,
+    "manifest_notes": "12 Gothic novels in one text file. Use convert_gutenberg_gothic.py, not convert_hf_sources.py.",
+    "text_field": null,
+    "genres": [
+      "gothic",
+      "fiction",
+      "project_gutenberg"
+    ],
+    "files": [
+      {
+        "file": "TRAINING_CORPUS.txt",
+        "bytes": 5171739,
+        "total_words": 899513,
+        "estimated_books": 7,
+        "preview": "The Project Gutenberg EBook of Nightmare Abbey, by Thomas Love Peacock  This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or re-use it unde…"
+      }
+    ]
+  },
+  {
+    "dir": "TristanBehrens__lovecraftcorpus",
+    "repo_id": "TristanBehrens/lovecraftcorpus",
+    "manifest_slug": "lovecraftcorpus",
+    "size_mb": 3.1,
+    "manifest_notes": "",
+    "text_field": "text",
+    "genres": [
+      "horror",
+      "weird_fiction"
+    ],
+    "files": [
+      {
+        "file": "train.jsonl",
+        "rows": 4371,
+        "columns": [
+          "text",
+          "meta"
+        ],
+        "text_field": "text",
+        "words_min": 1,
+        "words_median": 109,
+        "words_max": 816,
+        "samples": [
+          {
+            "text": "THE UNNAMABLE",
+            "meta": {
+              "source": "unnamable.txt"
+            }
+          },
+          {
+            "text": "With this friend, Joel Manton, I had often languidly disputed. He was principal of the East High School, born and bred in Boston and sharing New England's self-satisfied deafness t…",
+            "meta": {
+              "source": "unnamable.txt"
+            }
+          },
+          {
+            "text": "Though I well realized the futility of imaginative and metaphysical arguments against the complacency of an orthodox sun-dweller, something in the scene of this afternoon colloquy …",
+            "meta": {
+              "source": "unnamable.txt"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "diltdicker__romance_books_32K",
+    "repo_id": "diltdicker/romance_books_32K",
+    "manifest_slug": "romance_books_32k",
+    "size_mb": 15.4,
+    "manifest_notes": "",
+    "text_field": "description",
+    "genres": [
+      "romance"
+    ],
+    "files": [
+      {
+        "file": "romance_data-v2-32K-test.parquet",
+        "rows": 6149,
+        "columns": [
+          "id",
+          "pub_month",
+          "title",
+          "author",
+          "isbn13",
+          "description",
+          "abuse",
+          "accidental-pregnancy",
+          "action-adventure",
+          "actor-actress-dancer-model",
+          "adoption",
+          "adultery",
+          "african-american",
+          "alcoholism",
+          "aliens",
+          "alpha-hero",
+          "alternative-history",
+          "amateur-sleuth",
+          "americana",
+          "amish",
+          "amnesia",
+          "angels",
+          "animals",
+          "anthropologists-archeologists",
+          "arranged-marriage",
+          "arthurian-legend",
+          "astrology",
+          "bad-boy",
+          "best-friends",
+          "beta-hero",
+          "biographical",
+          "blackmail",
+          "captor-captive",
+          "category-romance",
+          "celebrities",
+          "celts",
+          "chefs-foodies",
+          "chick-lit",
+          "christian",
+          "clean-&-wholesome",
+          "comedy-humor",
+          "coming-of-age",
+          "contemporary-romance",
+          "cowboys",
+          "cozy-mystery",
+          "dark-fantasy",
+          "death-dying",
+          "debutante-heiress",
+          "demons",
+          "disabilities",
+          "divorce",
+          "doctor-nurse",
+          "dystopian",
+          "elves",
+          "enemies-to-lovers",
+          "epic-fantasy",
+          "erotica",
+          "espionage-spies-cia",
+          "fairy-tales-folklore",
+          "fake-relationship",
+          "falsely-accused",
+          "fantasy",
+          "fantasy-romance",
+          "feminism",
+          "firefighters",
+          "friends-to-lovers",
+          "general-fiction",
+          "ghosts",
+          "gothic",
+          "graphic-novel",
+          "guardian-ward",
+          "hard-boiled",
+          "heroic-fantasy-sword-&-sorcery",
+          "hidden-identity",
+          "hispanic-&-latino",
+          "historical",
+          "historical-mystery",
+          "historical-romance",
+          "holidays",
+          "horror",
+          "infidelity",
+          "jane-austen",
+          "jewish",
+          "kidnapping",
+          "law-enforcement",
+          "lawyers",
+          "lgbtq",
+          "literary",
+          "magic",
+          "magical-realism",
+          "mail-order-brides",
+          "manga",
+          "marriage-of-convenience",
+          "mature-(18-&-over)",
+          "may-december",
+          "medical",
+          "mermaids",
+          "military",
+          "mistaken-identity",
+          "motorcycle-club-bikers",
+          "moviestv",
+          "multicultural-&-interracial-romance",
+          "music",
+          "mystery",
+          "native-americans",
+          "nautical",
+          "navy-seals",
+          "new-adult-(18-25)",
+          "noir",
+          "occult-&-supernatural",
+          "office-romance",
+          "opposites-attract",
+          "orphans",
+          "paranormal",
+          "paranormal-romance",
+          "pirates",
+          "police-lawmen-fbi-agents",
+          "police-procedural",
+          "political",
+          "political-thriller",
+          "pregnancy",
+          "private-investigator",
+          "psychological-suspense",
+          "rags-to-riches",
+          "rakes",
+          "reincarnation",
+          "revenge",
+          "robin-hood",
+          "rock-stars",
+          "romance",
+          "romantic-elements",
+          "romantic-suspense",
+          "royalty",
+          "saga",
+          "schools",
+          "science-fiction",
+          "science-fiction-fantasy",
+          "scottish-highlands",
+          "second-chance-romance",
+          "secret-baby",
+          "serial-killers",
+          "servants-slaves",
+          "sheikhs",
+          "sherlock-holmes",
+          "single-parent",
+          "small-town",
+          "space-opera",
+          "speculative-fiction",
+          "sports",
+          "steampunk",
+          "superheroes",
+          "suspense",
+          "tear-jerker",
+          "technology",
+          "terrorists",
+          "thriller",
+          "time-travel",
+          "tortured-hero",
+          "tortured-heroine",
+          "traditional-regency",
+          "twins",
+          "tycoons",
+          "ugly-duckling",
+          "unicorns",
+          "urban-fantasy",
+          "vampires",
+          "vikings",
+          "virgin-hero",
+          "virgins",
+          "visionary-&-metaphysical",
+          "wagon-train",
+          "werewolves-shapeshifters",
+          "western",
+          "widow-widower",
+          "witch-warlock-mage-wizard",
+          "women-sleuths",
+          "womens-fiction",
+          "young-adult-teens",
+          "zombies",
+          "womens-fiction",
+          "abuse",
+          "accidental-pregnancy",
+          "action-adventure",
+          "actor-actress-dancer-model",
+          "adoption",
+          "adultery",
+          "african-american",
+          "alcoholism",
+          "aliens",
+          "alpha-hero",
+          "alternative-history",
+          "amateur-sleuth",
+          "americana",
+          "amish",
+          "amnesia",
+          "angels",
+          "animals",
+          "anthropologists-archeologists",
+          "arranged-marriage",
+          "arthurian-legend",
+          "astrology",
+          "bad-boy",
+          "best-friends",
+          "beta-hero",
+          "biographical",
+          "blackmail",
+          "captor-captive",
+          "category-romance",
+          "celebrities",
+          "celts",
+          "chefs-foodies",
+          "chick-lit",
+          "christian",
+          "clean-&-wholesome",
+          "comedy-humor",
+          "coming-of-age",
+          "contemporary-romance",
+          "cowboys",
+          "cozy-mystery",
+          "dark-fantasy",
+          "death-dying",
+          "debutante-heiress",
+          "demons",
+          "disabilities",
+          "divorce",
+          "doctor-nurse",
+          "dystopian",
+          "elves",
+          "enemies-to-lovers",
+          "epic-fantasy",
+          "erotica",
+          "espionage-spies-cia",
+          "fairy-tales-folklore",
+          "fake-relationship",
+          "falsely-accused",
+          "fantasy",
+          "fantasy-romance",
+          "feminism",
+          "firefighters",
+          "friends-to-lovers",
+          "general-fiction",
+          "ghosts",
+          "gothic",
+          "graphic-novel",
+          "guardian-ward",
+          "hard-boiled",
+          "heroic-fantasy-sword-&-sorcery",
+          "hidden-identity",
+          "hispanic-&-latino",
+          "historical",
+          "historical-mystery",
+          "historical-romance",
+          "holidays",
+          "horror",
+          "infidelity",
+          "jane-austen",
+          "jewish",
+          "kidnapping",
+          "lgbtq",
+          "law-enforcement",
+          "lawyers",
+          "literary",
+          "magic",
+          "magical-realism",
+          "mail-order-brides",
+          "manga",
+          "marriage-of-convenience",
+          "mature-(18-&-over)",
+          "may-december",
+          "medical",
+          "mermaids",
+          "military",
+          "mistaken-identity",
+          "motorcycle-club-bikers",
+          "moviestv",
+          "multicultural-&-interracial-romance",
+          "music",
+          "mystery",
+          "native-americans",
+          "nautical",
+          "navy-seals",
+          "new-adult-(18-25)",
+          "noir",
+          "occult-&-supernatural",
+          "office-romance",
+          "opposites-attract",
+          "orphans",
+          "paranormal",
+          "paranormal-romance",
+          "pirates",
+          "police-lawmen-fbi-agents",
+          "police-procedural",
+          "political",
+          "political-thriller",
+          "pregnancy",
+          "private-investigator",
+          "psychological-suspense",
+          "rags-to-riches",
+          "rakes",
+          "reincarnation",
+          "revenge",
+          "robin-hood",
+          "rock-stars",
+          "romance",
+          "romantic-elements",
+          "romantic-suspense",
+          "royalty",
+          "saga",
+          "schools",
+          "science-fiction",
+          "science-fiction-fantasy",
+          "scottish-highlands",
+          "second-chance-romance",
+          "secret-baby",
+          "serial-killers",
+          "servants-slaves",
+          "sheikhs",
+          "sherlock-holmes",
+          "single-parent",
+          "small-town",
+          "space-opera",
+          "speculative-fiction",
+          "sports",
+          "steampunk",
+          "superheroes",
+          "suspense",
+          "tear-jerker",
+          "technology",
+          "terrorists",
+          "thriller",
+          "time-travel",
+          "tortured-hero",
+          "tortured-heroine",
+          "traditional-regency",
+          "twins",
+          "tycoons",
+          "ugly-duckling",
+          "unicorns",
+          "urban-fantasy",
+          "vampires",
+          "vikings",
+          "virgin-hero",
+          "virgins",
+          "visionary-&-metaphysical",
+          "wagon-train",
+          "werewolves-shapeshifters",
+          "western",
+          "widow-widower",
+          "witch-warlock-mage-wizard",
+          "women-sleuths",
+          "young-adult-teens",
+          "zombies"
+        ],
+        "text_field": "description",
+        "words_min": 5,
+        "words_median": 109,
+        "words_max": 411,
+        "samples": [
+          {
+            "description": "A sweet little girl, all alone in the world, had been entrusted to Jussy Waring's care, and she was determined to shelter her from any more heartache. But Jussy hadn't counted on t…"
+          },
+          {
+            "description": "A obsessional love, set in a small village in South-west France during a hot summer. Simone San Cerre leaves home to work at the Hotel Delouche and soon finds herself falling in lo…"
+          },
+          {
+            "description": "Morgana leaves her straitlaced boarding school to marry the intriguing Griffin Kynes, owner of Albemarle plantation, and finds both passion and disillusionment in her marriage...  …"
+          }
+        ]
+      },
+      {
+        "file": "romance_data-v2-32K-train.parquet",
+        "rows": 24593,
+        "columns": [
+          "id",
+          "pub_month",
+          "title",
+          "author",
+          "isbn13",
+          "description",
+          "abuse",
+          "accidental-pregnancy",
+          "action-adventure",
+          "actor-actress-dancer-model",
+          "adoption",
+          "adultery",
+          "african-american",
+          "alcoholism",
+          "aliens",
+          "alpha-hero",
+          "alternative-history",
+          "amateur-sleuth",
+          "americana",
+          "amish",
+          "amnesia",
+          "angels",
+          "animals",
+          "anthropologists-archeologists",
+          "arranged-marriage",
+          "arthurian-legend",
+          "astrology",
+          "bad-boy",
+          "best-friends",
+          "beta-hero",
+          "biographical",
+          "blackmail",
+          "captor-captive",
+          "category-romance",
+          "celebrities",
+          "celts",
+          "chefs-foodies",
+          "chick-lit",
+          "christian",
+          "clean-&-wholesome",
+          "comedy-humor",
+          "coming-of-age",
+          "contemporary-romance",
+          "cowboys",
+          "cozy-mystery",
+          "dark-fantasy",
+          "death-dying",
+          "debutante-heiress",
+          "demons",
+          "disabilities",
+          "divorce",
+          "doctor-nurse",
+          "dystopian",
+          "elves",
+          "enemies-to-lovers",
+          "epic-fantasy",
+          "erotica",
+          "espionage-spies-cia",
+          "fairy-tales-folklore",
+          "fake-relationship",
+          "falsely-accused",
+          "fantasy",
+          "fantasy-romance",
+          "feminism",
+          "firefighters",
+          "friends-to-lovers",
+          "general-fiction",
+          "ghosts",
+          "gothic",
+          "graphic-novel",
+          "guardian-ward",
+          "hard-boiled",
+          "heroic-fantasy-sword-&-sorcery",
+          "hidden-identity",
+          "hispanic-&-latino",
+          "historical",
+          "historical-mystery",
+          "historical-romance",
+          "holidays",
+          "horror",
+          "infidelity",
+          "jane-austen",
+          "jewish",
+          "kidnapping",
+          "law-enforcement",
+          "lawyers",
+          "lgbtq",
+          "literary",
+          "magic",
+          "magical-realism",
+          "mail-order-brides",
+          "manga",
+          "marriage-of-convenience",
+          "mature-(18-&-over)",
+          "may-december",
+          "medical",
+          "mermaids",
+          "military",
+          "mistaken-identity",
+          "motorcycle-club-bikers",
+          "moviestv",
+          "multicultural-&-interracial-romance",
+          "music",
+          "mystery",
+          "native-americans",
+          "nautical",
+          "navy-seals",
+          "new-adult-(18-25)",
+          "noir",
+          "occult-&-supernatural",
+          "office-romance",
+          "opposites-attract",
+          "orphans",
+          "paranormal",
+          "paranormal-romance",
+          "pirates",
+          "police-lawmen-fbi-agents",
+          "police-procedural",
+          "political",
+          "political-thriller",
+          "pregnancy",
+          "private-investigator",
+          "psychological-suspense",
+          "rags-to-riches",
+          "rakes",
+          "reincarnation",
+          "revenge",
+          "robin-hood",
+          "rock-stars",
+          "romance",
+          "romantic-elements",
+          "romantic-suspense",
+          "royalty",
+          "saga",
+          "schools",
+          "science-fiction",
+          "science-fiction-fantasy",
+          "scottish-highlands",
+          "second-chance-romance",
+          "secret-baby",
+          "serial-killers",
+          "servants-slaves",
+          "sheikhs",
+          "sherlock-holmes",
+          "single-parent",
+          "small-town",
+          "space-opera",
+          "speculative-fiction",
+          "sports",
+          "steampunk",
+          "superheroes",
+          "suspense",
+          "tear-jerker",
+          "technology",
+          "terrorists",
+          "thriller",
+          "time-travel",
+          "tortured-hero",
+          "tortured-heroine",
+          "traditional-regency",
+          "twins",
+          "tycoons",
+          "ugly-duckling",
+          "unicorns",
+          "urban-fantasy",
+          "vampires",
+          "vikings",
+          "virgin-hero",
+          "virgins",
+          "visionary-&-metaphysical",
+          "wagon-train",
+          "werewolves-shapeshifters",
+          "western",
+          "widow-widower",
+          "witch-warlock-mage-wizard",
+          "women-sleuths",
+          "womens-fiction",
+          "young-adult-teens",
+          "zombies",
+          "womens-fiction",
+          "abuse",
+          "accidental-pregnancy",
+          "action-adventure",
+          "actor-actress-dancer-model",
+          "adoption",
+          "adultery",
+          "african-american",
+          "alcoholism",
+          "aliens",
+          "alpha-hero",
+          "alternative-history",
+          "amateur-sleuth",
+          "americana",
+          "amish",
+          "amnesia",
+          "angels",
+          "animals",
+          "anthropologists-archeologists",
+          "arranged-marriage",
+          "arthurian-legend",
+          "astrology",
+          "bad-boy",
+          "best-friends",
+          "beta-hero",
+          "biographical",
+          "blackmail",
+          "captor-captive",
+          "category-romance",
+          "celebrities",
+          "celts",
+          "chefs-foodies",
+          "chick-lit",
+          "christian",
+          "clean-&-wholesome",
+          "comedy-humor",
+          "coming-of-age",
+          "contemporary-romance",
+          "cowboys",
+          "cozy-mystery",
+          "dark-fantasy",
+          "death-dying",
+          "debutante-heiress",
+          "demons",
+          "disabilities",
+          "divorce",
+          "doctor-nurse",
+          "dystopian",
+          "elves",
+          "enemies-to-lovers",
+          "epic-fantasy",
+          "erotica",
+          "espionage-spies-cia",
+          "fairy-tales-folklore",
+          "fake-relationship",
+          "falsely-accused",
+          "fantasy",
+          "fantasy-romance",
+          "feminism",
+          "firefighters",
+          "friends-to-lovers",
+          "general-fiction",
+          "ghosts",
+          "gothic",
+          "graphic-novel",
+          "guardian-ward",
+          "hard-boiled",
+          "heroic-fantasy-sword-&-sorcery",
+          "hidden-identity",
+          "hispanic-&-latino",
+          "historical",
+          "historical-mystery",
+          "historical-romance",
+          "holidays",
+          "horror",
+          "infidelity",
+          "jane-austen",
+          "jewish",
+          "kidnapping",
+          "lgbtq",
+          "law-enforcement",
+          "lawyers",
+          "literary",
+          "magic",
+          "magical-realism",
+          "mail-order-brides",
+          "manga",
+          "marriage-of-convenience",
+          "mature-(18-&-over)",
+          "may-december",
+          "medical",
+          "mermaids",
+          "military",
+          "mistaken-identity",
+          "motorcycle-club-bikers",
+          "moviestv",
+          "multicultural-&-interracial-romance",
+          "music",
+          "mystery",
+          "native-americans",
+          "nautical",
+          "navy-seals",
+          "new-adult-(18-25)",
+          "noir",
+          "occult-&-supernatural",
+          "office-romance",
+          "opposites-attract",
+          "orphans",
+          "paranormal",
+          "paranormal-romance",
+          "pirates",
+          "police-lawmen-fbi-agents",
+          "police-procedural",
+          "political",
+          "political-thriller",
+          "pregnancy",
+          "private-investigator",
+          "psychological-suspense",
+          "rags-to-riches",
+          "rakes",
+          "reincarnation",
+          "revenge",
+          "robin-hood",
+          "rock-stars",
+          "romance",
+          "romantic-elements",
+          "romantic-suspense",
+          "royalty",
+          "saga",
+          "schools",
+          "science-fiction",
+          "science-fiction-fantasy",
+          "scottish-highlands",
+          "second-chance-romance",
+          "secret-baby",
+          "serial-killers",
+          "servants-slaves",
+          "sheikhs",
+          "sherlock-holmes",
+          "single-parent",
+          "small-town",
+          "space-opera",
+          "speculative-fiction",
+          "sports",
+          "steampunk",
+          "superheroes",
+          "suspense",
+          "tear-jerker",
+          "technology",
+          "terrorists",
+          "thriller",
+          "time-travel",
+          "tortured-hero",
+          "tortured-heroine",
+          "traditional-regency",
+          "twins",
+          "tycoons",
+          "ugly-duckling",
+          "unicorns",
+          "urban-fantasy",
+          "vampires",
+          "vikings",
+          "virgin-hero",
+          "virgins",
+          "visionary-&-metaphysical",
+          "wagon-train",
+          "werewolves-shapeshifters",
+          "western",
+          "widow-widower",
+          "witch-warlock-mage-wizard",
+          "women-sleuths",
+          "young-adult-teens",
+          "zombies"
+        ],
+        "text_field": "description",
+        "words_min": 5,
+        "words_median": 109,
+        "words_max": 673,
+        "samples": [
+          {
+            "description": "She'd come from North Carolina, newly divorced, to start over. Lindsay Voss, interior decorator, set designer for Dallas's leading catalog house, was succeeding so splendidly that …"
+          },
+          {
+            "description": "Craig Ransom, with his huge, modern hotel, presented a grave threat to the modest establishment run by Sandra Hamilton and her aunt. How could the two women possibly hold their own…"
+          },
+          {
+            "description": "Pioneers poured into the West; Civil War ravaged the East. But as upheaval racked the continent, the Cheyenne brave Lone Eagle and his courageous white woman Abigail Trent rediscov…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "leftyfeep__Robot.E.Howard.v2",
+    "repo_id": "leftyfeep/Robot.E.Howard.v2",
+    "manifest_slug": "robot_e_howard_v2",
+    "size_mb": 5.9,
+    "manifest_notes": "",
+    "text_field": "chosen",
+    "genres": [
+      "fiction",
+      "sword_and_sorcery",
+      "pulp",
+      "weird_fiction"
+    ],
+    "files": [
+      {
+        "file": "robot.e.howard.dataset.parquet",
+        "rows": 720,
+        "columns": [
+          "id",
+          "source",
+          "scene",
+          "chosen",
+          "rejected",
+          "prompt",
+          "rejected_model"
+        ],
+        "text_field": "chosen",
+        "words_min": 0,
+        "words_median": 982,
+        "words_max": 8736,
+        "samples": [
+          {
+            "chosen": "1. The Blood-Red Crescent  Taramis, queen of Khauran, awakened from a dream-haunted slumber to a silence that seemed more like the stillness of nighted catacombs than the normal qu…"
+          },
+          {
+            "chosen": "2. The Tree of Death  The young soldier's hose and shirt were smeared with dried blood, wet with sweat and gray with dust. Blood oozed from the deep gash in his thigh, from the cut…"
+          },
+          {
+            "chosen": "That smile was on the lips of Constantius at that very moment. He sat his horse among a cluster of his men—thick-bodied Shemites with curled blue-black beards and hooked noses; the…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "molbal__horror-novel-chunks",
+    "repo_id": "molbal/horror-novel-chunks",
+    "manifest_slug": "horror_novel_chunks",
+    "size_mb": 23.5,
+    "manifest_notes": "Pre-chunked Gutenberg horror (~5.5k rows).",
+    "text_field": "chunk",
+    "genres": [
+      "horror",
+      "fiction",
+      "project_gutenberg"
+    ],
+    "files": [
+      {
+        "file": "data.parquet",
+        "rows": 5510,
+        "columns": [
+          "chunk",
+          "source"
+        ],
+        "text_field": "chunk",
+        "words_min": 8,
+        "words_median": 1236,
+        "words_max": 1461,
+        "samples": [
+          {
+            "chunk": "    Produced by Suzanne Shell, Mary Meehan and the Online Distributed Proofreading Team at http://www.pgdp.net (This file was produced from images generously made available by The …"
+          },
+          {
+            "chunk": "Having accomplished his object, the mysterious plunderer thrust his spoil into a leathern bag with which he was provided, tied its mouth, and was about to take his departure by mea…"
+          },
+          {
+            "chunk": "And so, in fact, it had been. He had become little better than a pair of human bellows. In his hand he held the halberd with which Auriol had been wounded. \"So you have been playin…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "mrcedric98__fiction_books",
+    "repo_id": "mrcedric98/fiction_books",
+    "manifest_slug": "fiction_books",
+    "size_mb": 444.5,
+    "manifest_notes": "Chapter-level rows (~20k). Uses chapter_text, not chapter_and_next.",
+    "text_field": "chapter_text",
+    "genres": [
+      "fiction"
+    ],
+    "files": [
+      {
+        "file": "train-00000-of-00002.parquet",
+        "rows": 10276,
+        "columns": [
+          "book_id",
+          "book_title",
+          "chapter_text",
+          "chapter_and_next",
+          "len_of_chapter",
+          "num_unique_words",
+          "num_words"
+        ],
+        "text_field": "chapter_text",
+        "words_min": 1,
+        "words_median": 2207,
+        "words_max": 272098,
+        "samples": [
+          {
+            "chapter_text": "m.b. julien anthology complex bookrix gmbh & co. kg 81371 munich start this book was distributed courtesy of: for your own unlimited reading and free ebooks today, visit: http://ww…"
+          },
+          {
+            "chapter_text": ": this anthologic life last night, i had a dream. i'm walking alongside a row of parked cars in broad daylight, peering through each car's driver seat window as i pass by. this goe…"
+          },
+          {
+            "chapter_text": ": thieves from new york about a year ago, i had a dream. dressed in a rich man's suit and tie, committing a poor man's crime. they put the money in a garbage bag that i supply beca…"
+          }
+        ]
+      },
+      {
+        "file": "train-00001-of-00002.parquet",
+        "rows": 10275,
+        "columns": [
+          "book_id",
+          "book_title",
+          "chapter_text",
+          "chapter_and_next",
+          "len_of_chapter",
+          "num_unique_words",
+          "num_words"
+        ],
+        "text_field": "chapter_text",
+        "words_min": 1,
+        "words_median": 1846,
+        "words_max": 71375,
+        "samples": [
+          {
+            "chapter_text": "(i) the electric train slowed down and stopped at the hammersmith terminus, and there was the usual rush for the doors. \"come on, gertie,\" said a young man, \"here we are.\" the girl…"
+          },
+          {
+            "chapter_text": "(i) on the morning of the twenty-fourth a curious little incident happened--i dug the facts out of the police news--in a small public-house on the outskirts of south london. obviou…"
+          },
+          {
+            "chapter_text": "(i) at half-past eleven o'clock mrs. partington came upstairs to the room where the two men were still drinking, to make one more suggestion that it was time to go to bed. it was a…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "ppirli__Gutenberg-Fiction",
+    "repo_id": "ppirli/Gutenberg-Fiction",
+    "manifest_slug": "gutenberg_fiction",
+    "size_mb": 4830.4,
+    "manifest_notes": "23k full Gutenberg books (~4.8 GB). Use convert_hf_parquet.py --chunk.",
+    "text_field": "text",
+    "genres": [
+      "fiction",
+      "project_gutenberg"
+    ],
+    "files": [
+      {
+        "file": "train-00000-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 1,
+        "words_median": 51049,
+        "words_max": 963454,
+        "samples": [
+          {
+            "text": "[Illustration]     Alice’s Adventures in Wonderland  by Lewis Carroll  THE MILLENNIUM FULCRUM EDITION 3.0  Contents   CHAPTER I.     Down the Rabbit-Hole  CHAPTER II.    The Pool o…"
+          },
+          {
+            "text": "[Illustration]     THROUGH THE LOOKING-GLASS  And What Alice Found There  By Lewis Carroll  The Millennium Fulcrum Edition 1.7     DRAMATIS PERSONÆ. (_As arranged before commenceme…"
+          },
+          {
+            "text": "Moby-Dick  or,  THE WHALE.  by Herman Melville   Contents   Etymology  Extracts   CHAPTER I.—Loomings  CHAPTER II.—The Carpet Bag  CHAPTER III.—The Spouter-Inn  CHAPTER IV.—The Cou…"
+          }
+        ]
+      },
+      {
+        "file": "train-00001-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 666,
+        "words_median": 48126,
+        "words_max": 2590148,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: A First Family of Tasajara  Author: B…"
+          },
+          {
+            "text": "RED PEPPER BURNS  By Grace S. Richmond   CONTENTS   CHAPTER  I. IN WHICH HE VOWS A VOW  II. IN WHICH HE CREATES A CIRCUS  III. IN WHICH HE ASSUMES A RESPONSIBILITY  IV. IN WHICH HE…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Eight Cousins  Author: Louisa M. Alco…"
+          }
+        ]
+      },
+      {
+        "file": "train-00002-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 1563,
+        "words_median": 48544,
+        "words_max": 446309,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Extra Day  Author: Algernon Black…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Honor of the Big Snows  Author: J…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Her Weight in Gold  Author: George Ba…"
+          }
+        ]
+      },
+      {
+        "file": "train-00003-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 812,
+        "words_median": 62821,
+        "words_max": 328967,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Harrigan  Author: Max Brand  Posting …"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Calvary Alley  Author: Alice Hegan Ri…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Four Faces        A Mystery  Auth…"
+          }
+        ]
+      },
+      {
+        "file": "train-00004-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 2174,
+        "words_median": 59685,
+        "words_max": 362529,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or      Title: Heart's Desire  Author: Emerson Ho…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Bowser The Hound  Author: Thornton W.…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Bobbsey Twins in a Great City  Au…"
+          }
+        ]
+      },
+      {
+        "file": "train-00005-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 2178,
+        "words_median": 50449,
+        "words_max": 310973,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Marie Claire  Author: Marguerite Audo…"
+          },
+          {
+            "text": "V. Hobart, Illustrated by Edward Carey   This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or      …"
+          },
+          {
+            "text": "Hero-Worship, and the Heroic in History, by Thomas Carlyle  This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, gi…"
+          }
+        ]
+      },
+      {
+        "file": "train-00006-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 63,
+        "words_median": 54210,
+        "words_max": 350849,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Autres Temps...        1916  Author: …"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Long Run        1916  Author: Edi…"
+          },
+          {
+            "text": "Illustrated by   Martinez   This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or      Title: The Me…"
+          }
+        ]
+      },
+      {
+        "file": "train-00007-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 543,
+        "words_median": 43691,
+        "words_max": 450473,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Ponteach        The Savages of Americ…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Group        A Farce  Author: Mer…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Battle of Bunkers-Hill  Author: H…"
+          }
+        ]
+      },
+      {
+        "file": "train-00008-of-00016.parquet",
+        "rows": 1463,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 2238,
+        "words_median": 66105,
+        "words_max": 362532,
+        "samples": [
+          {
+            "text": "Roosevelt   This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or      Title: The Frontier Boys in t…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Underpup  Author: I. A. R. Wylie …"
+          },
+          {
+            "text": "Samuel Rutherford Crockett  This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The White…"
+          }
+        ]
+      },
+      {
+        "file": "train-00009-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 2223,
+        "words_median": 63331,
+        "words_max": 357102,
+        "samples": [
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Luck at the Diamond Fields  Author: D…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: The Jew  Author: Joseph Ignatius Kras…"
+          },
+          {
+            "text": "This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever.  You may copy it, give it away or   Title: Iermola  Author: Joseph Ignatius Kras…"
+          }
+        ]
+      },
+      {
+        "file": "train-00010-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 225,
+        "words_median": 57050,
+        "words_max": 426893,
+        "samples": [
+          {
+            "text": "file which includes the original illustrations.       See 42946-h.htm or 42946-h.zip:       or         Images of the original pages are available through       Internet Archive/Ame…"
+          },
+          {
+            "text": "THE MOTOR SCOUT     This eBook is for the use of anyone anywhere at no cost and with almost no restrictions whatsoever. You may copy it, give it away or re-use it    Title: The Mot…"
+          },
+          {
+            "text": "file which includes the original illustrations.       See 42961-h.htm or 42961-h.zip:       or         Images of the original pages are available through       Internet Archive. Se…"
+          }
+        ]
+      },
+      {
+        "file": "train-00011-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 382,
+        "words_median": 50373,
+        "words_max": 425750,
+        "samples": [
+          {
+            "text": "THE STOLEN CRUISER     [Illustration: \"CRASH! A SHELL STRIKING THE BASE OF THE FUNNEL REDUCING IT TO ATOMS.\" _Frontispiece_.]                                        [_Page_ 261. ] …"
+          },
+          {
+            "text": "THE BOY SCOUTS                                  OF THE                              FIELD HOSPITAL                                      BY                        SCOUT MASTER ROBER…"
+          },
+          {
+            "text": "By Homer Greene     A LINCOLN CONSCRIPT. Illustrated. 12mo, $1.50.    COAL AND THE COAL MINES. In Riverside Library for Young People.     Illustrated. 16mo, 75 cents.   HOUGHTON MI…"
+          }
+        ]
+      },
+      {
+        "file": "train-00012-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 576,
+        "words_median": 54501,
+        "words_max": 436541,
+        "samples": [
+          {
+            "text": "GRAFT  A Comedy In Four Acts  By Harold Brighouse  London: Samuel French Publisher  1913  GRAFT   [Illustration: 0001]   [Illustration: 0001]      ACT I  _A small room on the first…"
+          },
+          {
+            "text": "THE SCARING OFF OF TEDDY DAWSON  A Comedy In One Act  By Harold Brighouse  London: Samuel French, Ltd  1911  [Illustration: 0007]      THE SCARING OFF OF TEDDY DAWSON  _Living room…"
+          },
+          {
+            "text": "FARQUHARSON OF GLUNE     This ebook is for the use of anyone anywhere in the United States and most other parts of the world at no cost and with almost no restrictions whatsoever. …"
+          }
+        ]
+      },
+      {
+        "file": "train-00013-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 762,
+        "words_median": 22073,
+        "words_max": 235885,
+        "samples": [
+          {
+            "text": "[Illustration: “AND THEN IN ONE GLORIOUS, SUPREME MOMENT CAME THE ‘FLASH’”]       EMILY   OF NEW MOON    BY   L. M. MONTGOMERY    _Author of “Anne of Green Gables,” “The Story Girl…"
+          },
+          {
+            "text": "THE DIARY OF DELIA     ------------------------------------------------------------------------  [Illustration:    “‘Dying!’ ses I.” ]   -------------------------------------------…"
+          },
+          {
+            "text": "THE WINNING OF THE MOON                              BY KRIS NEVILLE                      The enemy was friendly enough.                      Trouble was--their friendship         …"
+          }
+        ]
+      },
+      {
+        "file": "train-00014-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 496,
+        "words_median": 43572,
+        "words_max": 270601,
+        "samples": [
+          {
+            "text": "[Illustration]                            Bearly Reasonable                             by W. C. Tuttle    Author of “Magpie, Diplomat,” and “Sixteen to One on Friday,” etc.   “Ike…"
+          },
+          {
+            "text": "The Woodcutter’s Dog  [Illustration]     [Illustration]                              THE WOODCUTTER’S DOG                       TRANSLATED FROM THE FRENCH OF                     CH…"
+          },
+          {
+            "text": "Note: Images of the original pages are available through       Villanova University Digital Library. See       https://digital.library.villanova.edu/Item/vudl:279070   Transcriber’…"
+          }
+        ]
+      },
+      {
+        "file": "train-00015-of-00016.parquet",
+        "rows": 1462,
+        "columns": [
+          "etextno",
+          "book_title",
+          "author",
+          "issued",
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 589,
+        "words_median": 42742,
+        "words_max": 480654,
+        "samples": [
+          {
+            "text": "SKULLS IN THE STARS                            BY ROBERT E HOWARD                      He told how murderers walk the earth                       Beneath the curse of Cain,        …"
+          },
+          {
+            "text": "STAR BRIGHT                              By Bryce Walton             Artificial dreams weren't enough for Andy Brooks.               He was determined to find them in reality!     …"
+          },
+          {
+            "text": "FUGUE                            By Stephen Marlowe                          A NOVELET OF THE FUTURE                   Most people actually know a good deal                    more…"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "dir": "taozi555__literotica-stories",
+    "repo_id": "taozi555/literotica-stories",
+    "manifest_slug": "literotica_stories",
+    "size_mb": 10800.9,
+    "manifest_notes": "645k story texts (~10.8 GB). Row-level prose; convert_hf_parquet.py without --chunk.",
+    "text_field": "text",
+    "genres": [
+      "fiction",
+      "erotica"
+    ],
+    "files": [
+      {
+        "file": "train-00000-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 207,
+        "words_median": 3484,
+        "words_max": 116147,
+        "samples": [
+          {
+            "text": "At the time I met Juliet, I wouldn't be able to predict the direction our relationship took. What started as a modest friendship between two college bachelors, evolved into a recip…"
+          },
+          {
+            "text": "Two hearts beating, the only sound, the slight yet relaxed rhythmical breathing of two souls in the half light afforded by the red numerals on the digital clock. In another time it…"
+          },
+          {
+            "text": "Ralph is quite a strange husband: his wife Cora is lesbian, and he has assented to let her have lesbian affairs -- and after several one-night stands, she's settled with a longtime…"
+          }
+        ]
+      },
+      {
+        "file": "train-00001-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 566,
+        "words_median": 3789,
+        "words_max": 117953,
+        "samples": [
+          {
+            "text": "Dad picked me up at 3 pm, just after he's done with his job for today, and I was about done helping out with lunch service. He drove his pickup and parked it in a spot close by the…"
+          },
+          {
+            "text": "With a fireworks show to start the day, we quickly finished the bacon strips before hitting the shower. On our second day, dad wanted us to go for a walk in the forest. Bird spotti…"
+          },
+          {
+            "text": "I woke with a yawn as the bright morning sun warmed my face. I rolled onto my back, shivering as my naked skin touched the cold hardwood floor. As my eyes slowly opened, I could he…"
+          }
+        ]
+      },
+      {
+        "file": "train-00002-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 0,
+        "words_median": 3332,
+        "words_max": 131152,
+        "samples": [
+          {
+            "text": "It was a humid summer day in Florida. Jeff had just finished a run in the unwavering heat. Upon reaching the refreshing coolness of his air-conditioned home, Jeff stripped off his …"
+          },
+          {
+            "text": "CHAPTER ONE: THE BEGINNING  As the car continued down the highway inevitably towards its destination, Dave sat in the passenger seat thinking about the vacation in front of him. He…"
+          },
+          {
+            "text": "To Jeff's surprise, his parking lot plan went flawlessly. He and Mary arrived at the first small parking with about a dozen spaces only to find it full. Without any help, Mary quic…"
+          }
+        ]
+      },
+      {
+        "file": "train-00003-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 168,
+        "words_median": 3675,
+        "words_max": 195763,
+        "samples": [
+          {
+            "text": "====================================  <I>All characters are 18 years or older.</I>  <I>This story is a continuation of the AMA: The Boyfriend series. I would highly suggest startin…"
+          },
+          {
+            "text": "====================================  <I>All characters are 18 years or older.</I>  <I>This story is a continuation of the AMA: The Boyfriend series. I would highly suggest startin…"
+          },
+          {
+            "text": "====================================  <I>All characters are 18 years or older.</I>  <I>This story is a continuation of the AMA: The Boyfriend series. I would highly suggest startin…"
+          }
+        ]
+      },
+      {
+        "file": "train-00004-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 509,
+        "words_median": 3521,
+        "words_max": 202753,
+        "samples": [
+          {
+            "text": "First let me say \"I love my wife!\" I have always loved her, and I wouldn't trade anything for our eighteen years of marriage. It really has been great BUT, I have to admit that our…"
+          },
+          {
+            "text": "\"At least let me blow you.\"  What? Did I hear that right?  After a few seconds of staring in space to let my brain digest what it heard, I looked down.  Sure enough, she was kneeli…"
+          },
+          {
+            "text": "Silence wasn't always common in the Freeland household, even less so around the dinner table. But for the moment, the two sisters and their mother sat without a word between them. …"
+          }
+        ]
+      },
+      {
+        "file": "train-00005-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 257,
+        "words_median": 3801,
+        "words_max": 129503,
+        "samples": [
+          {
+            "text": "<em>\"I dream of a stairway to the skies, my angel is coming down from heaven to...\"</em>   I hit the pause button on my game, looked at my phone, and my breath caught in my throat …"
+          },
+          {
+            "text": "I was totally bummed out. Here I had thought it was going to be a romantic evening, and then you decided that we would have dinner in a noisy, crowded sports bar and then go to som…"
+          },
+          {
+            "text": "You walk into the bedroom and find me building a seat from pillows and blankets on the floor in front of the full length mirror. \"What the heck ...\" you begin to say, but my smile …"
+          }
+        ]
+      },
+      {
+        "file": "train-00006-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 223,
+        "words_median": 3532,
+        "words_max": 107794,
+        "samples": [
+          {
+            "text": "I am Vincent 24, an unmarried guy, working for a computer firm at Mumbai. My born and brought up is at Mumbai only. So I don't have any close relation with my relatives. Since most…"
+          },
+          {
+            "text": "<i>There are no underage characters in this story. All characters portrayed are over 18-years-old.</i>  *****  By divine intervention, thank you Jesus for my sister, for my mother,…"
+          },
+          {
+            "text": "<I>Please vote. Please give me the support of your vote and leave me a comment.  There are no underage characters in this story. All characters portrayed are over 18-years-old.</I>…"
+          }
+        ]
+      },
+      {
+        "file": "train-00007-of-00037.parquet",
+        "rows": 17450,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 167,
+        "words_median": 3860,
+        "words_max": 72559,
+        "samples": [
+          {
+            "text": "\"Ted! Ted! You'll never guess what happened today!\" Cheryl burst into the house after work, over the moon with her news.  Ted loved the way his wife shared her enthusiasm. He took …"
+          },
+          {
+            "text": "<B> Part II  My Wife Parties More that First Evening</B>  <I>This is a work of fiction; it involves interracial sex, and other sexual acts. This is a fantasy world, so there are no…"
+          },
+          {
+            "text": "<b>Cheryl and New Friends -- Part III First trip to the Adult Theater</b>  This is a work of fiction; it involves interracial sex, and other sexual acts. This is a fantasy world, s…"
+          }
+        ]
+      },
+      {
+        "file": "train-00008-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 410,
+        "words_median": 3422,
+        "words_max": 121200,
+        "samples": [
+          {
+            "text": "Part 3  The first thing I felt upon waking was the pleasant weight of Tara's naked body snuggled against me. As the memory of what had taken place last night came back to me, a bro…"
+          },
+          {
+            "text": "Part 4  I could feel my breath shake as I turned the black diary over in my hands. It was a simple leather-bound notebook without any markings or distinctive features I could see. …"
+          },
+          {
+            "text": "Over the last year I've enjoyed exchanging emails with readers. I've decided to share some snippets from mostly anonymous emails.  'Your story sucks and has been done before. Nothi…"
+          }
+        ]
+      },
+      {
+        "file": "train-00009-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 523,
+        "words_median": 3657,
+        "words_max": 148103,
+        "samples": [
+          {
+            "text": "For every young man, his wedding is, undoubtedly, the most eagerly awaited day of his life. He has a million little hopes and dreams about his marriage; a vision of what his husban…"
+          },
+          {
+            "text": "<i>Hello guys and welcome to the 6th chapter of this wonderful story. Before I go into the story, I would really like to apologize for the delay in posting anything for a long time…"
+          },
+          {
+            "text": "Hello guys and welcome to the 7th chapter of this lovely story. I'm really happy and thankful because the previous chapter was received positively and the rates were really wonderf…"
+          }
+        ]
+      },
+      {
+        "file": "train-00010-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 480,
+        "words_median": 3456,
+        "words_max": 220349,
+        "samples": [
+          {
+            "text": "<i>This is the first chapter of a fictitious story. The characters in this story are based on real people, but I have changed most of the names and in some cases their appearance. …"
+          },
+          {
+            "text": "That night, Lucas ran the experience over and over through his mind. Stroking himself, he would picture the way Elisa's lips looked wrapped around the head of his cock. The way her…"
+          },
+          {
+            "text": "Lucas was lying naked on his bed, slowly stroking his cock, as he imagined it was someone else's hand jacking him off. Like most days, his mom was at work and his sisters were at c…"
+          }
+        ]
+      },
+      {
+        "file": "train-00011-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 424,
+        "words_median": 2752,
+        "words_max": 142125,
+        "samples": [
+          {
+            "text": "You direct me to kneel before You...naked, head bowed, back straight, chest out, hands to my back... legs parted with my knees spread a good 2 feet apart. I feel Your so soft yet h…"
+          },
+          {
+            "text": "I guess by allowing my sexual thoughts and urges to known, little by little, they made my sexual desires heighten and I liked it...a lot. They were so intensely exciting, it made m…"
+          },
+          {
+            "text": "Sharon and I waved a friendly 'good-bye' as our lesbian friends, who have been visiting from San Diego for a few days, were finally leaving. It is always strictly a no touch relati…"
+          }
+        ]
+      },
+      {
+        "file": "train-00012-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 290,
+        "words_median": 3783,
+        "words_max": 184989,
+        "samples": [
+          {
+            "text": "It was going to be a long miserable weekend. I'm Frank, twenty-six and the Assistant Scout Master for our troop and was going off for three days to look for a decent place to take …"
+          },
+          {
+            "text": "The young man was the first to jump the wall. Tina stood on the ground, waiting for him, watching him scan the amusement park for signs of life. She put her hands into the pockets …"
+          },
+          {
+            "text": "As she walked in from the bright sun her pupils contracted in the dimmer light. Her senses felt the cooler air. Her nose smelled the more industrial element of the setting, oil, wo…"
+          }
+        ]
+      },
+      {
+        "file": "train-00013-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 151,
+        "words_median": 3495,
+        "words_max": 178036,
+        "samples": [
+          {
+            "text": "I must have been more worn out than I thought because I woke up in the middle of the night, still sprawled out on my bed. I hadn't even gotten under the covers nor near the pillows…"
+          },
+          {
+            "text": "We arrived at Berkhamsted station at five to nine, with 20 minutes to spare before the next train to Euston. It was a blazingly hot day, so we were both wearing T-shirts, shorts an…"
+          },
+          {
+            "text": "\"Look, I'll just see you later!\"   Hannah closed the door behind her and stalked off down the corridor of her apartment building. Her boyfriend Alex had been getting on her nerves,…"
+          }
+        ]
+      },
+      {
+        "file": "train-00014-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 387,
+        "words_median": 3195,
+        "words_max": 158285,
+        "samples": [
+          {
+            "text": "It seems like an eternity that I stand poised in the hallway, hand raised to rap against the door panel. I could be paranoid to be seen here outside your hotel door, but this is th…"
+          },
+          {
+            "text": "\"I am deeply sorry you two, the only room we have left is a honey moon suite.\" The desk clerk tells us. After driving all day trying to get my new car across the country we were ti…"
+          },
+          {
+            "text": "My name is Jack and my wife is Joan. We are both 32 and the mess the world is in we can't decide to have children or not.   I work for a company that makes the parts of General Mot…"
+          }
+        ]
+      },
+      {
+        "file": "train-00015-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 425,
+        "words_median": 3769,
+        "words_max": 128548,
+        "samples": [
+          {
+            "text": "Once Ingrid was truly done with her bondage ceremony, Boris freed her lower limbs as well as her wrists. Ingrid elected to keep on her rope dress for the time being, as she enjoyed…"
+          },
+          {
+            "text": "As the women arrived at Ingrid's flat, Mistress Denna had to park her vehicle on the street in front of the building. Luckily as it was after 02:00 AM, there was no one on the stre…"
+          },
+          {
+            "text": "The conversation continued at the restaurant, as Ingrid asked, \"So was it your membership at der Höllenfeuer Verein and your participation there, that led you to become a professio…"
+          }
+        ]
+      },
+      {
+        "file": "train-00016-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 303,
+        "words_median": 3553,
+        "words_max": 80135,
+        "samples": [
+          {
+            "text": "Judy and I met when she was thirty six (You might say the perfect thirty six). The apartment where I lived, there were two neighborhood bars where everybody knew everyone in the ba…"
+          },
+          {
+            "text": "OK readers you are going to get what you ask for, me Judy. There were a lot of requests for me to write a story. I have to apologize for the comment that I made. (Pull up your big …"
+          },
+          {
+            "text": "I got home Friday from work and I had a message from my neighbor across the street that her computer was acting funny. Some how I have become her personal tech support over the yea…"
+          }
+        ]
+      },
+      {
+        "file": "train-00017-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 106,
+        "words_median": 3835,
+        "words_max": 118776,
+        "samples": [
+          {
+            "text": "<em>I wrote this a few weeks ago on a dare. This is my first attempt at writing anything that tells a story. I was told I can have a way with words, mainly verbally. I do better wh…"
+          },
+          {
+            "text": "“Are you sure there is no one here?” Jack asked his wife. As a real estate agent, Rachel had keys to apartments all over the city. Some were vacant, some occupied, as this one was,…"
+          },
+          {
+            "text": "It's a good thing the public library doesn't have cameras, I thought to myself as I greedily sucked on Steve Armand's dick in the basement. Groaning, the six-foot-tall, burly Haiti…"
+          }
+        ]
+      },
+      {
+        "file": "train-00018-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 229,
+        "words_median": 3435,
+        "words_max": 102779,
+        "samples": [
+          {
+            "text": "\"Oh my god, Jess. You wouldn't believe this guy I met recently!\" Charlotte gushed to Jess as they sat next to each other. They, along with about fifteen other top models in Hong Ko…"
+          },
+          {
+            "text": "I groaned when I felt my third pair of boxers rip. I was already late for school, and here I was struggling to get dressed. Fuck, why are all my boxers ripping like tissue paper? A…"
+          },
+          {
+            "text": "I shuffled into school like a zombie. The past couple of nights, I'd barely been able to get any sleep. I kept on waking up with that annoying buzzing itch in my hole. I've gotten …"
+          }
+        ]
+      },
+      {
+        "file": "train-00019-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 190,
+        "words_median": 3614,
+        "words_max": 159493,
+        "samples": [
+          {
+            "text": "METIS ACADEMY -- TODD'S DAY  Todd was trying very hard to concentrate in Miss Stella's class. But he was finding it nearly impossible as Becky stretched out her leg and flexed her …"
+          },
+          {
+            "text": "Miss Feri walked into the classroom with her usual chipper smile. As always the teacher wore her white lab coat, and kept her wild mane of brunette hair in a fluffy pony tail. The …"
+          },
+          {
+            "text": "I hesitate briefly, this had once been my home, my safety in a dangerous world.  I take a breath and remind myself, as I had many times on the journey here, that Grandmother would …"
+          }
+        ]
+      },
+      {
+        "file": "train-00020-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 449,
+        "words_median": 3106,
+        "words_max": 134594,
+        "samples": [
+          {
+            "text": "As 19 year old Kelwin knelt, he was overcome with love for Emery, and also with love for Mother, who had begun dominating Kelwin and his siblings after they turned 19. raised him w…"
+          },
+          {
+            "text": "<strong><u>Catching Mum</u></strong>  \"Oh, Sylvia, stop, stop, I can't handle any more,\" I shout.  Sylvia smiles at me and says, \"Oh, Mary, I wanted to make you cum an even dozen t…"
+          },
+          {
+            "text": "Frank and I had been mates since the day we our mothers left us howling on our first day at school. We shared our lunches, played together, and if any of the school bullies tried t…"
+          }
+        ]
+      },
+      {
+        "file": "train-00021-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 585,
+        "words_median": 3213,
+        "words_max": 66595,
+        "samples": [
+          {
+            "text": "<i>* This is the second part in the story, I tried to add as many of your comments to this part so I hope you enjoy it. My editor ran away so Ii do apologize for the little mistake…"
+          },
+          {
+            "text": "<i>This is my first try so be gentle with the constructive comments. Also English is my 4th language so a big thank you to Jonnie who helped me with the spelling. Well enjoy. BTW t…"
+          },
+          {
+            "text": "Book 2  Thanks to WAA01, Killerarmyguy, and Taco for the edits.  ******  Chapter One  \"Umm...\" Drake Lucian, aka Dante Cole, his professional name, stood very confused as he stared…"
+          }
+        ]
+      },
+      {
+        "file": "train-00022-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 439,
+        "words_median": 3456,
+        "words_max": 65918,
+        "samples": [
+          {
+            "text": "I was lying on a remote section of a popular nudist beach.  It was a beautiful summer day.  The beach was quite crowded with naked sun worshipers of all ages.  Each body was beauti…"
+          },
+          {
+            "text": "Hello. My name is Bill and I love to be naked outdoors! When I was nineteen, I used to go to a beach near New York City where I could lay out nude. I didn't have a girlfriend at th…"
+          },
+          {
+            "text": "When a polyamorous woman like my wife sees someone she is attracted to, the human body begins to modify behavior and certain physiological changes begin. Dana and I were naked, lou…"
+          }
+        ]
+      },
+      {
+        "file": "train-00023-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 183,
+        "words_median": 3459,
+        "words_max": 221826,
+        "samples": [
+          {
+            "text": "I was very happy with my new girlfriend. We'd met at a party organised by my brother. So I wasn't at all surprised that he'd planned to fix me up with yet another 'hot chick'. I wa…"
+          },
+          {
+            "text": "CHRISTMAS PARTY  I was fed up with parties where everyone sat around talking. I decided they were going to play party games at my party. They would talk about Mitzi's party for man…"
+          },
+          {
+            "text": "I didn't want to go to the party. I had broken up with my girlfriend two days earlier and frankly a night at home hanging out with my new found friend Jack helping me to block her …"
+          }
+        ]
+      },
+      {
+        "file": "train-00024-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 544,
+        "words_median": 3673,
+        "words_max": 178247,
+        "samples": [
+          {
+            "text": "In high school, it had always been me, Jodi, and Nadine. I couldn't have hoped for a closer relationship, even with sisters. We were sort of nerds in high school, but under the acn…"
+          },
+          {
+            "text": "It was a lovely sunny afternoon and Pamela, my recent new neighbour had popped in for a cuppa and a chit chat. She had moved to the neighbourhood several months ago and it hadn't t…"
+          },
+          {
+            "text": "<I>Author's note: This is a work of fiction. All characters are fictitious and over the age of eighteen. Any resemblance to persons living or dead is purely coincidental. </I>  <ce…"
+          }
+        ]
+      },
+      {
+        "file": "train-00025-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 131,
+        "words_median": 3584,
+        "words_max": 141244,
+        "samples": [
+          {
+            "text": "Going Shopping  Later that evening, Sandy found herself alone in her bedroom and bored. She didn't really feel like spending her time watching TV with her roommate. As a result, sh…"
+          },
+          {
+            "text": "A Happy Ending, Or Not?  Inevitably, Sandy and Jeremy began to argue and fight. They fought over Jeremy's lack of attention for Sandy, over his long hours at work, and his general …"
+          },
+          {
+            "text": "<em>I wrote this story after receiving multiple requests from readers who read Part 1. In keeping with the theme of the first story, some controversial bits have been included here…"
+          }
+        ]
+      },
+      {
+        "file": "train-00026-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 377,
+        "words_median": 3560,
+        "words_max": 117189,
+        "samples": [
+          {
+            "text": "<em>Please read the previous stories in the series - sexy wife, sexier sis-in-law Ch. 1 and Ch.2 for continuity. </em>  It was a warm day; the sun shining behind white, fluffy clou…"
+          },
+          {
+            "text": "Please read the previous stories in the series - Sexy wife, sexier sis-in-law Ch. 1, 2 and 3.  Ayush finally opens up to Preethi about his personal issues. It wasn't anything new. …"
+          },
+          {
+            "text": "Imagine this...we are driving down the road. It is a beautiful day. You are feeling rather randy. You have on a rather sexxxxy see thru top and a VERY short skirt, complete with a …"
+          }
+        ]
+      },
+      {
+        "file": "train-00027-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 85,
+        "words_median": 3669,
+        "words_max": 90360,
+        "samples": [
+          {
+            "text": "\"He was far too cocky and smug.\" The next day Angela was sitting having a light lunch with her best friend Vicky discussing her luncheon the day before with that man. She didn't ev…"
+          },
+          {
+            "text": "Angela was nervous and on edge. She was glad her day was almost over. She gave her head stylist instructions to close up the Salon and made her way to her own car and got in, revvi…"
+          },
+          {
+            "text": "Angela sat silently as the car ate up the miles ahead. She had so many things going through her head. When did her cover get blown? How did anyone know where she was? Who was the l…"
+          }
+        ]
+      },
+      {
+        "file": "train-00028-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 195,
+        "words_median": 3491,
+        "words_max": 109001,
+        "samples": [
+          {
+            "text": "Dianne's bare thighs closed against the toy humming between them. She groaned and then gasped as she gave in to the vibrations. Her left hand rubbed tiny circles over her clit. Slo…"
+          },
+          {
+            "text": "A few years back my wife Carole and I were living in a mid-size Midwest college town, still struggling in our professions. We were both in our mid-30s, small house, no kids. Gettin…"
+          },
+          {
+            "text": "<em>Summary: Two frustrated and ignored wives create their own Super Bowl Sunday.  NOTE: This story is dedicated to Loretta and Diane to good friends who have since this story was …"
+          }
+        ]
+      },
+      {
+        "file": "train-00029-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 250,
+        "words_median": 3640,
+        "words_max": 164790,
+        "samples": [
+          {
+            "text": "The after seeding  ______________  One year after the Seeding   Mille had been having a hard time controlling their daughter, though she had the enhancements like her husband John,…"
+          },
+          {
+            "text": "Millie was scared almost terrified John had just regained consciousness, here she'd broken the news to him about her sisters causing him to pass out again. {Millie?} A voice sounde…"
+          },
+          {
+            "text": "A week had passed since Mitch had detected the Triacarie, the shields John had put up were still at one hundred percent. Mitch was still analyzing the fifth shield that John had cr…"
+          }
+        ]
+      },
+      {
+        "file": "train-00030-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 172,
+        "words_median": 3945,
+        "words_max": 114630,
+        "samples": [
+          {
+            "text": "When I first came across Literotica (a short time ago) I read Rehnquist's 'Educating Shannon' and was fascinated by the plot line, but I thought it had the potential to be so much …"
+          },
+          {
+            "text": "Freddi took a deep breath and looked around the room, taking stock of the situation as he came back to his senses. He was dressed in women's clothes, with fake tits, makeup and a w…"
+          },
+          {
+            "text": "So, six months ago, I decided to break up with my girlfriend Alice.  It wasn't because one of us were cheating or anything bad like that, I just wanted to see other people, I'm twe…"
+          }
+        ]
+      },
+      {
+        "file": "train-00031-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 121,
+        "words_median": 3681,
+        "words_max": 119079,
+        "samples": [
+          {
+            "text": "The Intern  I finally got a response from the counseling office at the college to my ad for an intern. As it turned out it was a lot harder to get a single response for a student t…"
+          },
+          {
+            "text": "<i>*Note: all characters in this story are fictional and based on fictitious events.</i>  *****  Mya was a bitch. But she was a hot bitch, and everyone in the office was attracted …"
+          },
+          {
+            "text": "The Intern, Part Two  Guess who stopped by my office the next day at quitting time? She knocked lightly on my door jamb and asked, \"I wondered if I could come in for a few minutes-…"
+          }
+        ]
+      },
+      {
+        "file": "train-00032-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 523,
+        "words_median": 3686,
+        "words_max": 336048,
+        "samples": [
+          {
+            "text": "On the cellphone, Yuri had told Min-jin she was close to Yokohama.  Min-jin stood on the train station's platform, waiting for his former girlfriend, holding a won bill in his hand…"
+          },
+          {
+            "text": "His arms crossed, the eighteen-year old Min-jin kept his focus on the ceiling.  He was on a bed, an object Min-jin's dead, youngest uncle never slept on during his life.  It was Mi…"
+          },
+          {
+            "text": "Reo Tanaka was gone.  His apartment, where the eighteen-year old boy would eat in, sleep in, live in, had no one inside it.  No one came to his apartment to visit him.  It was as i…"
+          }
+        ]
+      },
+      {
+        "file": "train-00033-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 521,
+        "words_median": 3906,
+        "words_max": 203692,
+        "samples": [
+          {
+            "text": "I'd not used those particular toilets before, but I was desperate. I rushed in and went straight to the urinal, unzipping practically as I walked through the door. I could have pee…"
+          },
+          {
+            "text": "I sat nervously waiting for him on the bench. It had been awhile since I had seen him and wasn't sure if time would have changed him or lessened his attraction to me. I was not the…"
+          },
+          {
+            "text": "<i>Thank you to everyone who's sent me feedback on my stories so far. As I've said, I really appreciate it as I've never been brave enough to let anyone read my writing until now. …"
+          }
+        ]
+      },
+      {
+        "file": "train-00034-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 439,
+        "words_median": 3725,
+        "words_max": 103372,
+        "samples": [
+          {
+            "text": "CHAPTER 18  11:20 AM Tuesday, Jim's RX7 in Meshoppen Creek.  What had happened to Holly was still confusing as hell. When Shit-heel had rammed them, Jim had jerked her back into th…"
+          },
+          {
+            "text": "EPILOGUE  7:53 PM Friday, March 2nd, 1987, in a parking lot along Prescott Avenue, Scranton, Pennsylvania  Josh pulled into the supermarket parking lot as the note had instructed, …"
+          },
+          {
+            "text": "Prologue  For all I know, I've always been able to do it, but I was six years old the first time I remember it happening.  My grandpa was walking with me and his dog Frank back fro…"
+          }
+        ]
+      },
+      {
+        "file": "train-00035-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 538,
+        "words_median": 3537,
+        "words_max": 105067,
+        "samples": [
+          {
+            "text": "The morning after that night with Bob and Nancy my Mom acted like nothing new had happened. Just to catch you up if you haven't been following along, I recently turned 18, and star…"
+          },
+          {
+            "text": "<i>Author's note: I have had several requests for straight up Mom / Son incest stories. This isn't easy for me to truly imagine as a Trans woman but that also made it a bit of a ch…"
+          },
+          {
+            "text": "Cloudy days were the hardest to keep focus, and today was no exception. She couldn't help but reflect back on the morning and wonder what was ahead. It started out as any other mor…"
+          }
+        ]
+      },
+      {
+        "file": "train-00036-of-00037.parquet",
+        "rows": 17449,
+        "columns": [
+          "text"
+        ],
+        "text_field": "text",
+        "words_min": 187,
+        "words_median": 3590,
+        "words_max": 144606,
+        "samples": [
+          {
+            "text": "Awakening to the sun peeking through the curtains, Mary marveled at how wonderful it was to have some time to herself. After all the kids were wither ex-husband this weekend, so sh…"
+          },
+          {
+            "text": "<em>In this story we follow a young woman's adventures as she crashes the Tri-Delta's annual Halloween party. She has heard that it would be the greatest fuckfest of the year and i…"
+          },
+          {
+            "text": "\"Thump...thump...thump.\" My fingers tapped out a steady rhythm, which was muffled by the heavy white tablecloth. My eyes took in the expensive restaurant; crystal wine glasses, int…"
+          }
+        ]
+      }
+    ]
+  }
+]

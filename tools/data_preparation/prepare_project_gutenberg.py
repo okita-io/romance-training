@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 
 from paths import TRAINING, project_gutenberg_source
+from tools.data_preparation.gutenberg_corpus import clean_gutenberg_prose
 
 
 def infer_category(text: str, title: str = "") -> str:
@@ -53,11 +54,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]
 
 
 def clean_text(text: str) -> str:
-    text = re.sub(r"\*\*\* START OF THIS PROJECT GUTENBERG EBOOK.*?\*", "", text, flags=re.DOTALL)
-    text = re.sub(r"\*\*\* END OF THIS PROJECT GUTENBERG EBOOK.*", "", text, flags=re.DOTALL)
-    text = re.sub(r"\[Illustration.*?\]", "", text, flags=re.DOTALL)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+    return clean_gutenberg_prose(text)
 
 
 def main() -> None:

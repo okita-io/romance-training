@@ -31,7 +31,12 @@ if str(ROOT) not in sys.path:
 
 from tools.data_preparation.bookrix_metadata import parse_bookrix_metadata
 from tools.data_preparation.convert_hf_sources import iter_parquet, list_data_files, load_manifest
-from tools.data_preparation.gutenberg_corpus import iter_book_chunks, title_slug
+from tools.data_preparation.gutenberg_corpus import (
+    clean_gutenberg_prose,
+    detect_gutenberg_play,
+    iter_book_chunks,
+    title_slug,
+)
 from tools.data_preparation.language_filter import classify_language, detect_language
 from tools.data_preparation.unified_corpus import normalize_record, repo_dir_name
 
@@ -100,6 +105,11 @@ def row_to_book(
     if not isinstance(text, str) or not text.strip():
         return None
 
+    if manifest.get("clean_prose"):
+        text = clean_gutenberg_prose(text, strip_toc=manifest.get("strip_toc", True))
+        if not text.strip():
+            return None
+
     title_field = manifest.get("title_field")
     author_field = manifest.get("author_field")
     source_file_field = manifest.get("source_file_field")
@@ -162,6 +172,32 @@ def filter_english_books(
                 "language": detect_language(text) or lang_class,
                 "word_count": len(text.split()),
                 "reason": "non_english" if lang_class == "non_en" else "unknown_language",
+            })
+            continue
+        kept.append(book)
+    return kept, skipped
+
+
+def filter_plays(
+    books: list[dict[str, Any]],
+    *,
+    exclude_plays: bool,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not exclude_plays:
+        return books, []
+
+    kept: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for book in books:
+        reason = detect_gutenberg_play(book.get("title"), book.get("text", ""))
+        if reason:
+            skipped.append({
+                "story_id": book["story_id"],
+                "title": book.get("title"),
+                "author": book.get("author"),
+                "word_count": len(book.get("text", "").split()),
+                "reason": "play",
+                "play_signal": reason,
             })
             continue
         kept.append(book)
@@ -257,8 +293,15 @@ def convert_dataset(
     chunk: bool = False,
     chunk_words: int = 500,
     english_only: bool = True,
+    exclude_plays: bool = False,
     limit: int | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     paths = parquet_paths(manifest)
     books: list[dict[str, Any]] = []
     record_index = 0
@@ -274,7 +317,8 @@ def convert_dataset(
     if limit:
         books = books[:limit]
 
-    books, skipped = filter_english_books(books, english_only=english_only)
+    books, skipped_lang = filter_english_books(books, english_only=english_only)
+    books, skipped_plays = filter_plays(books, exclude_plays=exclude_plays)
 
     stories: list[dict[str, Any]] = []
     for book in books:
@@ -299,7 +343,7 @@ def convert_dataset(
     else:
         chunks = stories
 
-    return books, skipped, stories, chunks
+    return books, skipped_lang, skipped_plays, stories, chunks
 
 
 def main() -> None:
@@ -318,6 +362,11 @@ def main() -> None:
         action="store_true",
         help="Keep non-English rows (default: English only)",
     )
+    parser.add_argument(
+        "--include-plays",
+        action="store_true",
+        help="Keep plays/dramas (default: exclude when manifest exclude_plays is true)",
+    )
     args = parser.parse_args()
 
     slug, manifest = find_manifest(args.dataset)
@@ -325,11 +374,14 @@ def main() -> None:
     if not output_dir.is_absolute():
         output_dir = ROOT / output_dir
 
-    books, skipped, stories, chunks = convert_dataset(
+    exclude_plays = manifest.get("exclude_plays", False) and not args.include_plays
+
+    books, skipped_lang, skipped_plays, stories, chunks = convert_dataset(
         manifest,
         chunk=args.chunk,
         chunk_words=args.chunk_words,
         english_only=not args.include_all_languages,
+        exclude_plays=exclude_plays,
         limit=args.limit,
     )
 
@@ -337,18 +389,23 @@ def main() -> None:
     write_jsonl(chunks, output_dir / "chunks.jsonl")
     print(f"Wrote {len(stories)} stories -> {(output_dir / 'stories.jsonl').relative_to(ROOT)}")
     print(f"Wrote {len(chunks)} chunks -> {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
-    if skipped:
-        write_jsonl(skipped, output_dir / "skipped_non_english.jsonl")
-        print(f"Skipped {len(skipped)} non-English / unknown-language rows")
+    if skipped_lang:
+        write_jsonl(skipped_lang, output_dir / "skipped_non_english.jsonl")
+        print(f"Skipped {len(skipped_lang)} non-English / unknown-language rows")
+    if skipped_plays:
+        write_jsonl(skipped_plays, output_dir / "skipped_plays.jsonl")
+        print(f"Skipped {len(skipped_plays)} plays / dramas")
 
     index = {
         "dataset": manifest["repo_id"],
         "slug": manifest["slug"],
         "english_only": not args.include_all_languages,
+        "exclude_plays": exclude_plays,
         "chunked": args.chunk,
         "story_count": len(stories),
         "chunk_count": len(chunks),
-        "skipped_non_english": len(skipped),
+        "skipped_non_english": len(skipped_lang),
+        "skipped_plays": len(skipped_plays),
     }
     (output_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n", encoding="utf-8")
 

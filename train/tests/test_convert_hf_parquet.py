@@ -48,8 +48,11 @@ def test_convert_horror_novel_chunks_sample(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setattr(mod, "HF_ROOT", tmp_path / "hf")
     monkeypatch.setattr(mod, "iter_parquet", fake_iter_parquet)
 
-    books, skipped, stories, chunks = convert_dataset(manifest, english_only=False)
-    assert len(skipped) == 0
+    books, skipped_lang, skipped_plays, stories, chunks = convert_dataset(
+        manifest, english_only=False
+    )
+    assert len(skipped_lang) == 0
+    assert len(skipped_plays) == 0
     assert len(stories) == 1
     assert len(chunks) == 1
     assert stories[0]["metadata"]["source_file"] == "Dracula.txt"

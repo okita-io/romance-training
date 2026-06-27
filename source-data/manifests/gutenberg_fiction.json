@@ -8,5 +8,8 @@
   "author_field": "author",
   "extra_fields": ["etextno", "issued"],
   "min_words": 100,
-  "notes": "23k full Gutenberg books (~4.8 GB). Use convert_hf_parquet.py --chunk."
+  "clean_prose": true,
+  "strip_toc": true,
+  "exclude_plays": true,
+  "notes": "23k full Gutenberg books (~4.8 GB). Plays filtered out. Use convert_hf_parquet.py --chunk."
 }
