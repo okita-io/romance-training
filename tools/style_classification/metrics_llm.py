@@ -20,6 +20,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from llm_client import DEFAULT_MODEL, LLMError, complete as llm_complete  # noqa: E402
 
+from .pass_config import PASS1_LLM_FIELDS, PASS2_LLM_FIELDS, PassMode, fields_for_pass  # noqa: E402
+
 ANALYSIS_SYSTEM_PATH = ROOT / "source" / "extracted" / "style_analysis_system.json"
 
 _LEGACY_DEFAULTS: dict[str, Any] = {
@@ -54,6 +56,15 @@ def _llm_dimensions(rubric: dict | None) -> list[dict[str, Any]]:
     return []
 
 
+def _textual_principles(rubric: dict | None) -> list[dict[str, Any]]:
+    if rubric:
+        return rubric.get("textual_principles") or []
+    system = load_analysis_system()
+    if system:
+        return system.get("textual_principles") or []
+    return []
+
+
 def _default_for_dimension(dim: dict[str, Any]) -> Any:
     values = dim.get("values")
     if isinstance(values, list) and values:
@@ -67,36 +78,52 @@ def _default_for_dimension(dim: dict[str, Any]) -> Any:
     return None
 
 
-def _defaults(rubric: dict | None = None) -> dict[str, Any]:
-    out = dict(_LEGACY_DEFAULTS)
+def _defaults(
+    rubric: dict | None = None,
+    *,
+    fields: frozenset[str] | None = None,
+) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    if fields is None:
+        out = dict(_LEGACY_DEFAULTS)
+
     for dim in _llm_dimensions(rubric):
         dim_id = dim.get("id")
-        if dim_id and dim_id not in out:
+        if not dim_id:
+            continue
+        if fields is not None and dim_id not in fields:
+            continue
+        if dim_id not in out:
             default = _default_for_dimension(dim)
             if default is not None:
                 out[dim_id] = default
 
-    principles: list[dict[str, Any]] = []
-    if rubric:
-        principles = rubric.get("textual_principles") or []
-    else:
-        system = load_analysis_system()
-        if system:
-            principles = system.get("textual_principles") or []
-    for principle in principles:
+    for principle in _textual_principles(rubric):
         pid = principle.get("id")
         values = principle.get("values")
-        if pid and pid not in out and isinstance(values, list) and values:
+        if not pid or pid in out:
+            continue
+        if fields is not None and pid not in fields:
+            continue
+        if isinstance(values, list) and values:
             out[pid] = values[len(values) // 2]
+
     return out
 
 
-def _schema_lines(dims: list[dict[str, Any]], principles: list[dict[str, Any]]) -> str:
+def _schema_lines(
+    dims: list[dict[str, Any]],
+    principles: list[dict[str, Any]],
+    *,
+    fields: frozenset[str] | None = None,
+) -> str:
     lines: list[str] = ["Return a JSON object with exactly these keys and allowed values:", "{"]
     for dim in dims:
         dim_id = dim.get("id")
         values = dim.get("values")
         if not dim_id:
+            continue
+        if fields is not None and dim_id not in fields:
             continue
         if isinstance(values, list):
             allowed = ", ".join(json.dumps(v) for v in values)
@@ -106,9 +133,12 @@ def _schema_lines(dims: list[dict[str, Any]], principles: list[dict[str, Any]]) 
     for principle in principles:
         pid = principle.get("id")
         values = principle.get("values")
-        if pid and isinstance(values, list):
-            allowed = ", ".join(json.dumps(v) for v in values)
-            lines.append(f'  "{pid}": one of [{allowed}],')
+        if not pid or not isinstance(values, list):
+            continue
+        if fields is not None and pid not in fields:
+            continue
+        allowed = ", ".join(json.dumps(v) for v in values)
+        lines.append(f'  "{pid}": one of [{allowed}],')
     lines.append('  "evidence": optional brief object mapping dimension ids to quoted phrases from the passage')
     lines.append("}")
     return "\n".join(lines)
@@ -124,20 +154,44 @@ def _build_system_prompt(rubric: dict | None) -> str:
     )
 
 
-def _build_user_prompt(text: str, rubric: dict | None, rubric_context: str) -> str:
-    dims = _llm_dimensions(rubric)
-    principles = []
-    if rubric:
-        principles = rubric.get("textual_principles") or []
-    elif load_analysis_system():
-        principles = (load_analysis_system() or {}).get("textual_principles") or []
+def _prior_block(prior: dict[str, Any], context_fields: frozenset[str] | None) -> str:
+    if not prior:
+        return ""
+    skip = {"evidence"}
+    if context_fields is not None:
+        relevant = {
+            k: v for k, v in prior.items() if k in context_fields and k not in skip and v is not None
+        }
+    else:
+        relevant = {k: v for k, v in prior.items() if k not in skip and v is not None}
+    if not relevant:
+        return ""
+    payload = json.dumps(relevant, ensure_ascii=False, indent=2)
+    return (
+        "Prior classification from an earlier pass (use as context; refine only if the passage contradicts):\n"
+        f"{payload}\n"
+    )
 
-    schema = _schema_lines(dims, principles)
+
+def _build_user_prompt(
+    text: str,
+    rubric: dict | None,
+    rubric_context: str,
+    *,
+    fields: frozenset[str] | None = None,
+    prior: dict[str, Any] | None = None,
+) -> str:
+    dims = _llm_dimensions(rubric)
+    principles = _textual_principles(rubric)
+    schema = _schema_lines(dims, principles, fields=fields)
+    prior_context = PASS1_LLM_FIELDS if fields == PASS2_LLM_FIELDS else fields
+    prior_text = _prior_block(prior or {}, prior_context)
+
     return f"""Analyse this prose passage using the Leech & Short framework.
 
 {rubric_context}
 
-{schema}
+{prior_text}{schema}
 
 Base judgments on the passage text and rubric definitions above. Return ONLY valid JSON.
 
@@ -149,11 +203,23 @@ def assess(
     text: str,
     model: str = DEFAULT_MODEL,
     rubric: dict | None = None,
+    *,
+    pass_mode: PassMode = "full",
+    fields: frozenset[str] | None = None,
+    prior: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Run LLM analysis on a passage and return semantic style metrics.
+
+    Args:
+        pass_mode: "full" (all fields), "fast" (pass 1), or "deep" (pass 2).
+        fields:    Restrict to these keys (overrides pass_mode when set).
+        prior:     Pass 1 labels injected into the prompt for pass 2.
+
     Falls back to defaults on any connection error so the pipeline never stalls.
     """
+    active_fields = fields if fields is not None else fields_for_pass(pass_mode)
+
     words = text.split()
     if len(words) > 1200:
         text = " ".join(words[:1200]) + "…"
@@ -165,12 +231,18 @@ def assess(
     if not rubric_context.strip():
         rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
 
-    defaults = _defaults(rubric)
-    max_tokens = 8192
+    defaults = _defaults(rubric, fields=active_fields)
+    max_tokens = 8192 if active_fields is None else 2048
 
     try:
         raw = llm_complete(
-            _build_user_prompt(text, rubric, rubric_context),
+            _build_user_prompt(
+                text,
+                rubric,
+                rubric_context,
+                fields=active_fields,
+                prior=prior,
+            ),
             system=_build_system_prompt(rubric),
             model=model,
             max_tokens=max_tokens,
@@ -185,7 +257,8 @@ def assess(
         return defaults
 
     merged = dict(defaults)
-    merged.update({k: v for k, v in result.items() if k in defaults or k == "evidence"})
+    allowed = set(defaults) | {"evidence"}
+    merged.update({k: v for k, v in result.items() if k in allowed})
     return merged
 
 

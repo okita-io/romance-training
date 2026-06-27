@@ -1,210 +1,166 @@
-A multi pass approach for classifications:
-Using a smaller LLM could mean higher tokens/sec, right now the 32B LLM is running at around 20t/s a smaller LLM ~3-6B could be at least three to 3 times that and we can run more than 2 safely in the limited VRam, so im proposing a muilti pass approach for chunk classification.
+# Multi-pass LLM classification (Phase 2)
 
-We'll start with Mystral-3-3B, then once we have the first pass, we can have LM Studio unload the 3B model and load the Qwen3.6-32B-A3B to finish the rest of the classification. The reduction in prompt processing time should be significant if the 32B only needs to process 2 or 3 fields.
+Design note for speeding up bulk chunk classification on a 24 GB GPU (RTX 3090) using LM Studio.
 
-A smaller LLM would have difficulty filling in all ~10 the required fields in one shot, so instead we'll want to have the small LLM fill in 2 or 3 fields. If _possible_ retain context using a multi-turn conversation.
+## Problem
 
-I think the key takeaway from the conversaion with CoPilot is the small LLM can take on the first 4 groups and the 32B MoE can take on the last 2 groups.
+Today, Phase 2 runs **one LLM call per chunk** via `metrics_llm.assess()`, asking for all semantic fields in a single JSON response (~16 keys: 10 `llm_dimensions` + 6 `textual_principles`, plus computable metrics from spaCy/textstat).
 
-- Use a **small 2–4B model** for the first 4 groups  
-- Use the **32B MoE** only for the last 2 groups (tone + mind style)  
+With **Qwen3.6-32B-A3B** (~20 tok/s observed):
 
+- Prompt + passage + full schema is heavy; generation is slow.
+- **Parallelism is limited to 2 workers** (`--workers 2`). 3 workers becomes unstable after a few hours; 4 can freeze the machine.
 
-Conversation with CoPilot on the subject:
-# ✅ **Short answer**
-**Yes, you can run a chained, chat‑style multi‑turn conversation in LM Studio to classify each group sequentially, and the model *will* retain context across turns.**
+A **2–4B model** (e.g. Mistral 3 3B) is faster (~3× tok/s in practice) and fits **4 parallel workers** safely.
 
-LM Studio’s chat interface and its API both support:
-- persistent conversation state  
-- multi‑turn reasoning  
-- incremental JSON building  
-- “fill in the next fields” workflows  
+## Recommended strategy: two-pass, stateless (not 6-turn chat)
 
-So your idea is valid and supported.
+CoPilot’s 6-turn *chat chain* per chunk is valid in LM Studio but **not what we should build first**:
 
----
+| Chat-chain issue | Why it matters here |
+|------------------|---------------------|
+| Full history reprocessed every turn | 6× cost *per chunk*, on top of 6× calls |
+| `llm_client.complete()` is single-turn only | Would need a new `complete_messages()` API |
+| Small models barely use prior turns | Gains are mostly from smaller prompts, not memory |
+| Parallelism is per-chunk | Turns within a chunk must stay sequential |
 
-# 🔍 **But here’s the deeper truth:**
-A multi‑turn chain is **only beneficial if the model is large enough** to *use* the previous answers as context.
+**Better fit for this repo:** run the corpus in **two sequential passes**, merging JSON into `metadata.style_profile`. Pass 2 receives Pass 1 labels as **structured context in one user message** — not as chat history.
 
-For a **32B MoE**?  
-→ Yes, it will absolutely leverage earlier outputs.
+```
+Pass 1 (small model, --workers 4)
+  → classify "easy" dimensions + textual principles
+  → write partial style_profile to output JSONL
 
-For a **2B–4B distilled classifier**?  
-→ It will *remember* the earlier turns, but it won’t *use* them meaningfully unless the tasks are closely related.
+Pass 2 (32B MoE, --workers 2)
+  → read partial profiles + passage
+  → classify "hard" dimensions only
+  → merge into final style_profile
+```
 
-This is why grouping matters.
+Resume semantics stay the same as `run_pipeline.py`: skip records that already have the fields that pass cares about.
 
----
+## Field split (aligned to `style_rubric.json`)
 
-# 🧠 **Why chaining helps**
-A multi‑turn chain gives you:
+CoPilot’s example turns mixed in **computable** fields. Those never go to the LLM — they come from `metrics_computable.py`:
 
-### **1. Contextual reinforcement**
-If the model already decided:
-- “Register = formal literary”
-- “Lexical complexity = high”
+| Field | Source |
+|-------|--------|
+| `lexical_density`, `sentence_length_mean`, `subordination_ratio`, `dialogue_ratio` | spaCy / textstat (always) |
 
-…then later tasks like:
-- “Mind style”
-- “Narrative distance”
+### Pass 1 — small model (Mistral 3 3B or similar)
 
-…become easier because the model has a stylistic anchor.
+~4 parallel workers. **Four groups → up to four short requests per chunk**, or **two requests** if 3B handles ~5 keys reliably in one shot (validate on a `--limit 50` sample first).
 
-### **2. Reduced cognitive load per turn**
-Instead of asking for 20 labels at once, you ask for 2–3.  
-Small models love this.
+| Group | Keys | Notes |
+|-------|------|-------|
+| **1 — Lexical surface** | `lexical_complexity`, `register`, `figurative_density` | Most stable; good 3B task |
+| **2 — Syntax (semantic)** | `sentence_complexity` | Do **not** ask LLM for subordination or sentence length — already computed |
+| **3 — Discourse** | `pov`, `cohesion` | Do **not** ask LLM for `dialogue_ratio` — already computed |
+| **4 — Textual dynamics** | `segmentation`, `prose_rhythm`, `end_focus`, `subordination_salience`, `textual_relations`, `climax` | `textual_principles` in rubric |
 
-### **3. Better consistency across dimensions**
-The model can avoid contradictions like:
-- “POV = first person”  
-- “Narrative distance = distant”  
-- “Tone = neutral”  
-- “Climax = strong”  
+Optional consolidation: groups 1+2 in one call, groups 3+4 in one call → **2 requests/chunk** on the small model.
 
-…which often happens when everything is done in one shot.
+### Pass 2 — 32B MoE (Qwen3.6-32B-A3B)
 
----
+~2 parallel workers. **One request per chunk** — prompt includes Pass 1 JSON + passage + rubric context for only these keys:
 
-# ⚠️ **But here’s the catch**
-LM Studio **does not automatically optimize** multi‑turn chains.
+| Group | Keys | Notes |
+|-------|------|-------|
+| **5 — Tone** | `tone`, `climax` | `climax` may already be set in Pass 1; Pass 2 can refine or skip if present |
+| **6 — Viewpoint / mind style** | `narrative_distance`, `mind_style`, `free_indirect_discourse` | Needs holistic reading; 32B MoE |
 
-Meaning:
-- Every turn is a full forward pass  
-- The entire conversation history is re‑evaluated each time  
-- Long histories slow down inference  
-- You pay the full token cost every turn  
+If Pass 1 already scored `climax`, Pass 2 can omit it and only fill `tone`, `narrative_distance`, `mind_style`, `free_indirect_discourse` (4 keys) — the main win for the large model.
 
-This is why you want to keep each turn:
-- short  
-- structured  
-- minimal history  
+## Hardware and LM Studio settings
 
-And why grouping into 2–3 dimensions per turn is ideal.
+| Model | Safe `--workers` | LM Studio concurrent slots |
+|-------|------------------|----------------------------|
+| Qwen3.6-32B-A3B (MoE) | **2** | 2 |
+| Mistral 3 3B (or 2–4B) | **4** | 4 |
 
----
+Between passes: unload the small model and load the 32B in LM Studio (or point `LLM_MODEL` / `--model` at the loaded id). Only one model needs to be in VRAM at a time.
 
-# 🧩 **Recommended multi‑turn chain structure (optimized for LM Studio)**
+Env pattern:
 
-Here’s the exact sequence I’d use:
+```bash
+# Pass 1
+LLM_MODEL=mistralai/ministral-3-3b
+python tools/style_classification/run_pipeline.py \
+  --workers 4 \
+  --pass fast \
+  --input source-data/processed/horror_novel_chunks/chunks.jsonl \
+  --output train/romance_corpus/horror_styled.jsonl
 
----
+$env:LLM_MODEL="mistralai/ministral-3-3b"
+python tools/style_classification/run_pipeline.py --pass fast --workers 4 --input source-data/processed/horror_novel_chunks/chunks.jsonl --output train/romance_corpus/horror_styled.jsonl
 
-## **Turn 1 — Lexical Surface Features**
-Prompt:
-- Lexical complexity  
-- Register  
-- Figurative density  
+# Pass 2 (after swapping model in LM Studio)
+LLM_MODEL=qwen3.6-35b-a3b-abliterated-heretic
+python tools/style_classification/run_pipeline.py \
+  --workers 2 \
+  --pass deep \
+  --input source-data/processed/horror_novel_chunks/chunks.jsonl \
+  --output train/romance_corpus/horror_styled.jsonl
+```
 
-Why first?  
-These are the most stable and easiest to infer.
+(`--pass fast|deep` is implemented in `run_pipeline.py` and `classify_passage.py`.)
 
----
+## What exists today
 
-## **Turn 2 — Syntactic Complexity**
-Prompt:
-- Sentence complexity  
-- Subordination  
-- Sentence length  
+| Component | Status |
+|-----------|--------|
+| `run_pipeline.py --workers N` | Parallel **chunks**, one model per run |
+| `run_pipeline.py --pass fast\|deep\|full` | Two-pass + single-shot modes |
+| `metrics_llm.assess()` | Field-restricted requests + prior context |
+| `metrics_computable.compute()` | Always runs first |
+| Resume | Per-pass field completion checks |
+| Multi-turn chat in `llm_client` | **Not implemented** (not needed for two-pass) |
 
-Why second?  
-Syntax interacts with lexical choices.
+## Implementation checklist
 
----
+Shipped:
 
-## **Turn 3 — Discourse Mechanics**
-Prompt:
-- POV  
-- Cohesion  
-- Dialogue ratio  
+1. **`metrics_llm.assess()`** — `pass_mode`, `fields`, and `prior` for restricted keys and Pass 1 context.
+2. **`classify_passage.classify()`** — `pass_mode` and `prior_profile`.
+3. **`run_pipeline.py`** — `--pass fast|deep|full`, per-pass resume, deep-pass merge rewrite.
+4. **`pass_config.py`** — `PASS1_LLM_FIELDS`, `PASS2_LLM_FIELDS`, `pass_complete()`.
 
-Why third?  
-These depend on pronouns and structure, which the model now has context for.
+Still optional:
 
----
+- `llm_client.complete_messages()` for true multi-turn chains.
+- Confidence routing: send ambiguous Pass 1 rows to 32B for all fields.
+- Single command that orchestrates both passes with a model swap prompt.
 
-## **Turn 4 — Textual Dynamics**
-Prompt:
-- Segmentation  
-- Rhythm  
-- End-focus  
+## Throughput expectations (realistic)
 
-Why fourth?  
-These depend on sentence-level patterns already analyzed.
+Rough orders of magnitude — measure on your box:
 
----
+| Mode | Workers | Calls / chunk | Notes |
+|------|---------|---------------|-------|
+| Current 32B single-shot | 2 | 1 large | ~20 tok/s, full schema |
+| Pass 1 only (3B, 2 calls) | 4 | 2 small | Higher chunk throughput |
+| Pass 2 only (32B) | 2 | 1 small schema | Most prompt tokens dropped |
 
-## **Turn 5 — Tone & Climax**
-Prompt:
-- Tone  
-- Climax  
+Do **not** expect literal 10× end-to-end speedup: Pass 1 adds extra calls, and Pass 2 still touches every chunk. The win is **Pass 2 prompt size** (4 keys vs 16) plus **4-wide parallelism on Pass 1**. Validate with wall-clock on `--limit 200` before committing to a full corpus run.
 
-Why fifth?  
-Tone is influenced by lexical + syntactic + discourse features.
+## When *not* to use multi-pass
 
----
+- **`--no-llm`** — computable metrics only; unchanged.
+- **`--llm-sample-rate < 1`** — sample rate applies per pass if you run both; document that double sampling is usually wrong (run fast pass on 100%, deep pass on sample, or vice versa).
+- **Quality spot-checks** — keep a `--pass full` code path identical to today’s single 32B call for regression comparison.
 
-## **Turn 6 — Deep Cognitive Style**
-Prompt:
-- Narrative distance  
-- Mind style  
+## CoPilot takeaways (kept, corrected)
 
-Why last?  
-These require the most holistic reasoning.
+- **Grouping 2–3 dimensions per request** helps small models; our Pass 1 groups follow that.
+- **Chaining helps large models** when prior labels are supplied; Pass 2 should get Pass 1 JSON in the prompt, not rely on chat memory.
+- **Multi-turn chat** trades accuracy for latency when every turn re-reads history — avoid as the default automation path.
+- Several CoPilot turn labels (`subordination`, `sentence length`, `dialogue ratio`) are **computable in this pipeline** — asking the LLM for them would duplicate or contradict spaCy metrics.
 
----
+## Related files
 
-# ⚡ **Does LM Studio support this?**
-Yes — LM Studio supports:
-
-### ✔️ Multi-turn chat  
-You can keep a running conversation and the model will see all previous turns.
-
-### ✔️ Persistent context  
-The model will use earlier answers as part of its reasoning.
-
-### ✔️ JSON accumulation  
-You can build the final rubric piece by piece.
-
-### ✔️ API mode for automation  
-You can script the entire chain using LM Studio’s local API.
-
-### ✔️ KV caching (if your model supports it)  
-This speeds up repeated prefix evaluation.
-
----
-
-# 🧨 **But here’s the performance reality**
-A 32B MoE at 40 tok/sec doing 6 turns per chunk means:
-
-- 6× the inference time  
-- 6× the token cost  
-- 6× the GPU load  
-
-So you get:
-- **better accuracy**  
-- **much slower throughput**  
-
-This is why I recommend:
-
-### **Hybrid strategy**
-- Use a **small 2–4B model** for the first 4 groups  
-- Use the **32B MoE** only for the last 2 groups (tone + mind style)  
-- Or only for low-confidence cases  
-
-This gives you:
-- 10× speed  
-- 90% of the accuracy  
-- 10% of the GPU cost  
-
----
-
-# 🔥 If you want, I can generate:
-- the exact prompts for each turn  
-- the JSON schema for incremental accumulation  
-- a Python script for LM Studio’s API to automate the chain  
-- a confidence-based routing system  
-- a distillation plan for a 3B classifier  
-
-Just tell me which piece you want to build next.
+- `tools/style_classification/metrics_llm.py` — prompts and parsing
+- `tools/style_classification/run_pipeline.py` — bulk run and `--workers`
+- `tools/llm_client.py` — HTTP client (extend for multi-turn if needed)
+- `source/extracted/style_analysis_system.json` — canonical dimension list
+- `source/style_rubric.json` — rubric + RAG context for classification
+- `docs/GPU_RUNBOOK.md` — Phase 2 runbook (update worker guidance after implementation)

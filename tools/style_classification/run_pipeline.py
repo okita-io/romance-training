@@ -9,24 +9,25 @@ Usage:
     # Classify existing Gutenberg romance corpus (fast, no LLM)
     python tools/style_classification/run_pipeline.py --no-llm
 
-    # Full classification with LLM on all records
+    # Full classification with LLM on all records (single model, all fields)
     python tools/style_classification/run_pipeline.py
+
+    # Two-pass hybrid (see source/multi-pass.md)
+    # Pass 1 — small model, ~4 workers
+    python tools/style_classification/run_pipeline.py --pass fast --workers 4 \\
+        --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
+        --output train/romance_corpus/horror_styled.jsonl
+
+    # Pass 2 — 32B MoE, ~2 workers (swap model in LM Studio first)
+    python tools/style_classification/run_pipeline.py --pass deep --workers 2 \\
+        --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
+        --output train/romance_corpus/horror_styled.jsonl
 
     # LLM on a 20% sample (good balance of speed vs. coverage)
     python tools/style_classification/run_pipeline.py --llm-sample-rate 0.2
 
-    # Custom input/output
-    python tools/style_classification/run_pipeline.py \\
-        --input data/corpus/sources/project_gutenberg/train.jsonl \\
-        --output data/corpus/training/processed/gutenberg_styled.jsonl
-
     # Parallel workers (computable-only mode)
     python tools/style_classification/run_pipeline.py --no-llm --workers 8
-
-    # Parallel LLM requests (LM Studio with multiple slots, e.g. --workers 4)
-    python tools/style_classification/run_pipeline.py --workers 4 \\
-        --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
-        --output train/romance_corpus/horror_styled.jsonl
 """
 
 from __future__ import annotations
@@ -151,7 +152,70 @@ def _profile_hint(record: dict) -> str:
     register = profile.get("register")
     if register:
         return f"register={register}"
+    tone = profile.get("tone")
+    if tone:
+        return f"tone={tone}"
     return ""
+
+
+def _load_output_index(path: Path) -> tuple[dict[str, dict], list[str]]:
+    """Load output JSONL into key -> record (last wins) preserving first-seen order."""
+    by_key: dict[str, dict] = {}
+    order: list[str] = []
+    if not path.exists():
+        return by_key, order
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            key = _record_key(record)
+            if key not in by_key:
+                order.append(key)
+            by_key[key] = record
+    return by_key, order
+
+
+def _existing_profile(
+    record: dict,
+    output_index: dict[str, dict],
+    key: str,
+) -> dict[str, Any]:
+    if key in output_index:
+        profile = output_index[key].get("metadata", {}).get("style_profile", {})
+        if isinstance(profile, dict):
+            return profile
+    profile = record.get("metadata", {}).get("style_profile", {})
+    return profile if isinstance(profile, dict) else {}
+
+
+def _should_skip(
+    key: str,
+    record: dict,
+    output_index: dict[str, dict],
+    pass_mode: str,
+    resume: bool,
+) -> bool:
+    if not resume:
+        return False
+    from tools.style_classification.pass_config import PassMode, pass_complete
+
+    profile = _existing_profile(record, output_index, key)
+    mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep") else "full"
+    if mode == "full":
+        return bool(profile)
+    return pass_complete(profile, mode)
+
+
+def _rewrite_output(path: Path, by_key: dict[str, dict], order: list[str]) -> None:
+    with open(path, "w", encoding="utf-8") as fh:
+        for key in order:
+            record = by_key.get(key)
+            if record is not None:
+                fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def _enrich(
@@ -159,6 +223,8 @@ def _enrich(
     rubric: dict | None,
     use_llm: bool,
     llm_model: str,
+    pass_mode: str,
+    prior_profile: dict[str, Any] | None,
 ) -> dict:
     text = record.get("text", "")
     if not text or len(text.split()) < 30:
@@ -166,7 +232,15 @@ def _enrich(
 
     try:
         from tools.style_classification.classify_passage import classify
-        profile = classify(text, rubric=rubric, use_llm=use_llm, llm_model=llm_model)
+
+        profile = classify(
+            text,
+            rubric=rubric,
+            use_llm=use_llm,
+            llm_model=llm_model,
+            pass_mode=pass_mode,
+            prior_profile=prior_profile,
+        )
         out = dict(record)
         meta = dict(out.get("metadata", {}))
         meta["style_profile"] = profile
@@ -188,18 +262,27 @@ def run(
     resume: bool = True,
     seed: int = 42,
     quiet: bool = False,
+    pass_mode: str = "full",
 ) -> None:
     random.seed(seed)
+
+    from tools.style_classification.pass_config import suggested_workers
 
     # Load rubric (optional; enhances LLM prompt context)
     rubric: dict | None = None
     rubric_path = ROOT / "source" / "style_rubric.json"
     if rubric_path.exists():
         from tools.style_classification.classify_passage import load_rubric
+
         rubric = load_rubric(rubric_path)
         print(f"Rubric loaded: {len(rubric.get('dimensions', []))} dimensions")
     else:
         print("No rubric found — run extract_rubric.py first for best results")
+
+    print(f"Pass mode: {pass_mode}")
+    hint = suggested_workers(pass_mode if pass_mode in ("full", "fast", "deep") else "full")
+    if use_llm and hint and workers == 1:
+        print(f"Tip: --pass {pass_mode} often runs well with --workers {hint}")
 
     # Read input
     print(f"Reading {input_path} …")
@@ -219,27 +302,28 @@ def run(
     pre_chunk = len(records)
     records = [chunk for r in records for chunk in _chunk_record(r)]
     if len(records) != pre_chunk:
-        print(f"Chunked {pre_chunk} records -> {len(records)} chunks ({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)")
+        print(
+            f"Chunked {pre_chunk} records -> {len(records)} chunks "
+            f"({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)"
+        )
     print(f"Total records: {len(records)}")
 
-    # Resume: collect already-processed keys
-    done_keys: set[str] = set()
-    if resume and output_path.exists():
-        with open(output_path, "r", encoding="utf-8") as fh:
-            for line in fh:
-                if line.strip():
-                    try:
-                        r = json.loads(line)
-                        if r.get("metadata", {}).get("style_profile"):
-                            done_keys.add(_record_key(r))
-                    except json.JSONDecodeError:
-                        pass
-        if done_keys:
-            print(f"Resuming — {len(done_keys)} already classified")
+    output_index, output_order = _load_output_index(output_path)
+    skipped = sum(
+        1 for r in records if _should_skip(_record_key(r), r, output_index, pass_mode, resume)
+    )
+    if skipped:
+        print(f"Resuming — {skipped} already complete for pass={pass_mode}")
 
-    to_process = [r for r in records if _record_key(r) not in done_keys]
-    print(f"Records to classify: {len(to_process)}")
-    if not to_process:
+    work_items: list[tuple[str, dict]] = []
+    for record in records:
+        key = _record_key(record)
+        if _should_skip(key, record, output_index, pass_mode, resume):
+            continue
+        work_items.append((key, record))
+
+    print(f"Records to classify: {len(work_items)}")
+    if not work_items:
         print("Nothing to do.")
         return
 
@@ -247,19 +331,20 @@ def run(
     llm_indices: set[int] = set()
     if use_llm:
         if llm_sample_rate >= 1.0:
-            llm_indices = set(range(len(to_process)))
+            llm_indices = set(range(len(work_items)))
         else:
-            n = int(len(to_process) * llm_sample_rate)
-            llm_indices = set(random.sample(range(len(to_process)), n))
+            n = int(len(work_items) * llm_sample_rate)
+            llm_indices = set(random.sample(range(len(work_items)), n))
         print(
-            f"LLM analysis: {len(llm_indices)}/{len(to_process)} records "
-            f"({100 * len(llm_indices) // len(to_process)}%)"
+            f"LLM analysis: {len(llm_indices)}/{len(work_items)} records "
+            f"({100 * len(llm_indices) // max(len(work_items), 1)}%)"
         )
         if workers > 1:
             print(f"Parallel LLM workers: {workers}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    progress = _ProgressTracker(total=len(to_process))
+    progress = _ProgressTracker(total=len(work_items))
+    rewrite_at_end = pass_mode == "deep"
 
     def _log_classified(result: dict) -> None:
         interval, throughput, eta_sec = progress.mark_done()
@@ -277,38 +362,77 @@ def run(
             flush=True,
         )
 
-    with open(output_path, "a", encoding="utf-8") as out_fh:
+    def _process_item(idx: int, key: str, record: dict) -> None:
+        do_llm = use_llm and (idx in llm_indices)
+        prior = _existing_profile(record, output_index, key) if pass_mode == "deep" else None
+        result = _enrich(
+            record,
+            rubric,
+            do_llm,
+            llm_model,
+            pass_mode,
+            prior,
+        )
+        _write_result(key, result)
+
+    if rewrite_at_end:
         write_lock = threading.Lock()
 
-        def _write_result(result: dict) -> None:
+        def _write_result(key: str, result: dict) -> None:
+            output_index[key] = result
+            if key not in output_order:
+                output_order.append(key)
             with write_lock:
-                out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
                 if quiet:
                     progress.mark_done()
                     if progress.processed % (50 if use_llm else 200) == 0:
                         _flush_progress()
                 else:
                     _log_classified(result)
-                out_fh.flush()
 
         if workers > 1:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = {
-                    pool.submit(
-                        _enrich,
-                        record,
-                        rubric,
-                        use_llm and (i in llm_indices),
-                        llm_model,
-                    ): i
-                    for i, record in enumerate(to_process)
+                    pool.submit(_process_item, i, key, record): i
+                    for i, (key, record) in enumerate(work_items)
                 }
                 for future in as_completed(futures):
-                    _write_result(future.result())
+                    future.result()
         else:
-            for i, record in enumerate(to_process):
-                do_llm = use_llm and (i in llm_indices)
-                _write_result(_enrich(record, rubric, do_llm, llm_model))
+            for i, (key, record) in enumerate(work_items):
+                _process_item(i, key, record)
+
+        _rewrite_output(output_path, output_index, output_order)
+        print(f"Rewrote {output_path} ({len(output_order)} records)")
+    else:
+        with open(output_path, "a", encoding="utf-8") as out_fh:
+            write_lock = threading.Lock()
+
+            def _write_result(key: str, result: dict) -> None:
+                output_index[key] = result
+                if key not in output_order:
+                    output_order.append(key)
+                with write_lock:
+                    out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+                    out_fh.flush()
+                    if quiet:
+                        progress.mark_done()
+                        if progress.processed % (50 if use_llm else 200) == 0:
+                            _flush_progress()
+                    else:
+                        _log_classified(result)
+
+            if workers > 1:
+                with ThreadPoolExecutor(max_workers=workers) as pool:
+                    futures = {
+                        pool.submit(_process_item, i, key, record): i
+                        for i, (key, record) in enumerate(work_items)
+                    }
+                    for future in as_completed(futures):
+                        future.result()
+            else:
+                for i, (key, record) in enumerate(work_items):
+                    _process_item(i, key, record)
 
     elapsed = time.time() - progress.t0
     print(f"\nDone. {progress.processed} records in {elapsed / 60:.1f} min -> {output_path}")
@@ -325,16 +449,29 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--no-llm", action="store_true", help="Computable metrics only (fast)")
     parser.add_argument("--model", default=None, help="Model name (defaults to LLM_MODEL env var)")
-    parser.add_argument("--base-url", default=None, help="LLM API base URL (default: LLM_BASE_URL or localhost:1234/v1)")
     parser.add_argument(
-        "--llm-sample-rate", type=float, default=1.0,
+        "--base-url",
+        default=None,
+        help="LLM API base URL (default: LLM_BASE_URL or localhost:1234/v1)",
+    )
+    parser.add_argument(
+        "--llm-sample-rate",
+        type=float,
+        default=1.0,
         help="Fraction of records to run LLM on (0.0–1.0). Default: 1.0",
+    )
+    parser.add_argument(
+        "--pass",
+        dest="pass_mode",
+        choices=("full", "fast", "deep"),
+        default="full",
+        help="LLM pass: fast (pass 1, small model), deep (pass 2, large model), full (all fields)",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=1,
-        help="Parallel threads (LLM or computable). Match LM Studio concurrent slots (e.g. 4).",
+        help="Parallel threads. Typical: 4 for --pass fast, 2 for --pass deep (match LM Studio slots).",
     )
     parser.add_argument("--limit", type=int, help="Process only first N records (for testing)")
     parser.add_argument("--no-resume", action="store_true", help="Overwrite output")
@@ -350,12 +487,13 @@ def main() -> None:
         print(f"Input not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
-    # Apply base-url override before any LLM calls
     if args.base_url:
         import tools.llm_client as _lc
+
         _lc.DEFAULT_BASE_URL = args.base_url
 
     from tools.llm_client import DEFAULT_MODEL
+
     model = args.model or DEFAULT_MODEL
 
     if args.no_resume and args.output.exists():
@@ -372,6 +510,7 @@ def main() -> None:
         resume=not args.no_resume,
         seed=args.seed,
         quiet=args.quiet,
+        pass_mode=args.pass_mode,
     )
 
 
