@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-PassMode = Literal["full", "fast", "deep"]
+PassMode = Literal["full", "fast", "deep", "both"]
 
 # Pass 1 — small model: lexical, syntax (semantic), discourse, textual principles
 PASS1_LLM_FIELDS: frozenset[str] = frozenset({
@@ -45,14 +45,14 @@ def fields_for_pass(pass_mode: PassMode) -> frozenset[str] | None:
 
 def pass_complete(profile: dict, pass_mode: PassMode) -> bool:
     """True when all LLM fields for this pass are present in profile."""
-    if pass_mode == "full":
+    if pass_mode in ("full", "both"):
         return bool(profile) and all(profile.get(f) is not None for f in ALL_LLM_FIELDS)
     required = PASS1_LLM_FIELDS if pass_mode == "fast" else PASS2_LLM_FIELDS
     return bool(profile) and all(profile.get(f) is not None for f in required)
 
 
 def suggested_workers(pass_mode: PassMode) -> int | None:
-    if pass_mode == "fast":
+    if pass_mode in ("fast", "both"):
         return 4
     if pass_mode == "deep":
         return 2

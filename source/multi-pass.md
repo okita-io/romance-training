@@ -39,6 +39,12 @@ Pass 2 (32B MoE, --workers 2)
 
 Resume semantics stay the same as `run_pipeline.py`: skip records that already have the fields that pass cares about.
 
+### Durability
+
+Every pass **appends one line and flushes after each chunk** — safe to interrupt at any time. Resume reloads the output file using last-wins per record key (so duplicate lines from an interrupted deep pass are harmless).
+
+When `--pass deep` **finishes successfully**, the pipeline rewrites the file once to remove duplicate keys and restore a single line per chunk. If deep is interrupted before that compact step, rerun `--pass deep`; resume still works, and the next successful completion compacts the file.
+
 ## Field split (aligned to `style_rubric.json`)
 
 CoPilot’s example turns mixed in **computable** fields. Those never go to the LLM — they come from `metrics_computable.py`:
@@ -80,7 +86,24 @@ If Pass 1 already scored `climax`, Pass 2 can omit it and only fill `tone`, `nar
 
 Between passes: unload the small model and load the 32B in LM Studio (or point `LLM_MODEL` / `--model` at the loaded id). Only one model needs to be in VRAM at a time.
 
-Env pattern:
+### Same model for both passes (`--pass both`)
+
+If a single model handles both field sets well (e.g. Mistral 3 3B on your box), use **`--pass both`** — one LM Studio load, **two smaller LLM requests per chunk** (fast fields, then deep fields with pass-1 context). No model swap between passes.
+
+```bash
+LLM_MODEL=mistralai/ministral-3-3b
+python tools/style_classification/run_pipeline.py \
+  --workers 4 \
+  --pass both \
+  --input source-data/processed/horror_novel_chunks/chunks.jsonl \
+  --output train/romance_corpus/horror_styled.jsonl
+```
+
+Resume: skips chunks that already have **all** LLM fields. If you previously ran `--pass fast` only, rerun with `--pass both` — it fills in the missing deep fields only.
+
+`--pass full` remains the single-call alternative (one large schema request per chunk).
+
+Env pattern (two separate runs, different models):
 
 ```bash
 # Pass 1
@@ -103,14 +126,14 @@ python tools/style_classification/run_pipeline.py \
   --output train/romance_corpus/horror_styled.jsonl
 ```
 
-(`--pass fast|deep` is implemented in `run_pipeline.py` and `classify_passage.py`.)
+(`--pass fast|deep|both|full` is implemented in `run_pipeline.py` and `classify_passage.py`.)
 
 ## What exists today
 
 | Component | Status |
 |-----------|--------|
 | `run_pipeline.py --workers N` | Parallel **chunks**, one model per run |
-| `run_pipeline.py --pass fast\|deep\|full` | Two-pass + single-shot modes |
+| `run_pipeline.py --pass fast\|deep\|both\|full` | Two-pass + same-model both + single-shot modes |
 | `metrics_llm.assess()` | Field-restricted requests + prior context |
 | `metrics_computable.compute()` | Always runs first |
 | Resume | Per-pass field completion checks |
@@ -122,14 +145,14 @@ Shipped:
 
 1. **`metrics_llm.assess()`** — `pass_mode`, `fields`, and `prior` for restricted keys and Pass 1 context.
 2. **`classify_passage.classify()`** — `pass_mode` and `prior_profile`.
-3. **`run_pipeline.py`** — `--pass fast|deep|full`, per-pass resume, deep-pass merge rewrite.
+3. **`run_pipeline.py`** — `--pass fast|deep|both|full`, per-pass resume, append+flush after each chunk, compact at end for deep/both.
 4. **`pass_config.py`** — `PASS1_LLM_FIELDS`, `PASS2_LLM_FIELDS`, `pass_complete()`.
 
 Still optional:
 
 - `llm_client.complete_messages()` for true multi-turn chains.
 - Confidence routing: send ambiguous Pass 1 rows to 32B for all fields.
-- Single command that orchestrates both passes with a model swap prompt.
+- Single command that orchestrates both passes with a model swap prompt. **Shipped as `--pass both`** (same model, no swap).
 
 ## Throughput expectations (realistic)
 

@@ -1,0 +1,32 @@
+{
+  "max_segment_mb_default": 50,
+  "training_mix_corpora": [
+    "horror_novel_chunks",
+    "literotica_stories",
+    "fiction_books",
+    "gutenberg_fiction"
+  ],
+  "corpora": {
+    "horror_novel_chunks": {
+      "label": "Horror (Gutenberg chunks)",
+      "input": "source-data/processed/horror_novel_chunks/chunks.jsonl",
+      "import_styled": "train/romance_corpus/horror_styled.jsonl",
+      "expansion_ratio": 2.97
+    },
+    "literotica_stories": {
+      "label": "Literotica stories (keep-tier)",
+      "input": "source-data/processed/literotica_stories/chunks.jsonl",
+      "expansion_ratio": 11.55
+    },
+    "fiction_books": {
+      "label": "Fiction books (chapters)",
+      "input": "source-data/processed/fiction_books/chunks.jsonl",
+      "expansion_ratio": 6.36
+    },
+    "gutenberg_fiction": {
+      "label": "Gutenberg fiction (~500w chunks)",
+      "input": "source-data/processed/gutenberg_fiction/chunks.jsonl",
+      "expansion_ratio": 1.0
+    }
+  }
+}

@@ -4,6 +4,8 @@ Phase 2: Run the style classification pipeline over a JSONL corpus.
 
 Reads JSONL (text + metadata), adds style_profile to metadata, writes enriched JSONL.
 Supports resuming interrupted runs — already-processed records are skipped.
+Each classified chunk is appended and flushed immediately (safe to interrupt).
+Deep pass compacts duplicate lines once at successful completion.
 
 Usage:
     # Classify existing Gutenberg romance corpus (fast, no LLM)
@@ -18,8 +20,13 @@ Usage:
         --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
         --output train/romance_corpus/horror_styled.jsonl
 
-    # Pass 2 — 32B MoE, ~2 workers (swap model in LM Studio first)
+    # Pass 2 — same or larger model (--pass deep), or use --pass both for one model, two calls/chunk
     python tools/style_classification/run_pipeline.py --pass deep --workers 2 \\
+        --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
+        --output train/romance_corpus/horror_styled.jsonl
+
+    # Same model for both field sets (2 LLM calls/chunk, no swap in LM Studio)
+    python tools/style_classification/run_pipeline.py --pass both --workers 4 \\
         --input source-data/processed/horror_novel_chunks/chunks.jsonl \\
         --output train/romance_corpus/horror_styled.jsonl
 
@@ -204,7 +211,7 @@ def _should_skip(
     from tools.style_classification.pass_config import PassMode, pass_complete
 
     profile = _existing_profile(record, output_index, key)
-    mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep") else "full"
+    mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full"
     if mode == "full":
         return bool(profile)
     return pass_complete(profile, mode)
@@ -227,6 +234,9 @@ def _enrich(
     prior_profile: dict[str, Any] | None,
 ) -> dict:
     text = record.get("text", "")
+    from tools.data_preparation.unified_corpus import normalize_prose_text
+
+    text = normalize_prose_text(text)
     if not text or len(text.split()) < 30:
         return record
 
@@ -242,7 +252,9 @@ def _enrich(
             prior_profile=prior_profile,
         )
         out = dict(record)
+        out["text"] = text
         meta = dict(out.get("metadata", {}))
+        meta["word_count"] = len(text.split())
         meta["style_profile"] = profile
         out["metadata"] = meta
         return out
@@ -280,7 +292,7 @@ def run(
         print("No rubric found — run extract_rubric.py first for best results")
 
     print(f"Pass mode: {pass_mode}")
-    hint = suggested_workers(pass_mode if pass_mode in ("full", "fast", "deep") else "full")
+    hint = suggested_workers(pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full")
     if use_llm and hint and workers == 1:
         print(f"Tip: --pass {pass_mode} often runs well with --workers {hint}")
 
@@ -344,7 +356,7 @@ def run(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     progress = _ProgressTracker(total=len(work_items))
-    rewrite_at_end = pass_mode == "deep"
+    compact_at_end = pass_mode in ("deep", "both")
 
     def _log_classified(result: dict) -> None:
         interval, throughput, eta_sec = progress.mark_done()
@@ -364,7 +376,7 @@ def run(
 
     def _process_item(idx: int, key: str, record: dict) -> None:
         do_llm = use_llm and (idx in llm_indices)
-        prior = _existing_profile(record, output_index, key) if pass_mode == "deep" else None
+        prior = _existing_profile(record, output_index, key) if pass_mode in ("deep", "both") else None
         result = _enrich(
             record,
             rubric,
@@ -375,7 +387,7 @@ def run(
         )
         _write_result(key, result)
 
-    if rewrite_at_end:
+    with open(output_path, "a", encoding="utf-8") as out_fh:
         write_lock = threading.Lock()
 
         def _write_result(key: str, result: dict) -> None:
@@ -383,6 +395,8 @@ def run(
             if key not in output_order:
                 output_order.append(key)
             with write_lock:
+                out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
+                out_fh.flush()
                 if quiet:
                     progress.mark_done()
                     if progress.processed % (50 if use_llm else 200) == 0:
@@ -402,37 +416,9 @@ def run(
             for i, (key, record) in enumerate(work_items):
                 _process_item(i, key, record)
 
+    if compact_at_end:
         _rewrite_output(output_path, output_index, output_order)
-        print(f"Rewrote {output_path} ({len(output_order)} records)")
-    else:
-        with open(output_path, "a", encoding="utf-8") as out_fh:
-            write_lock = threading.Lock()
-
-            def _write_result(key: str, result: dict) -> None:
-                output_index[key] = result
-                if key not in output_order:
-                    output_order.append(key)
-                with write_lock:
-                    out_fh.write(json.dumps(result, ensure_ascii=False) + "\n")
-                    out_fh.flush()
-                    if quiet:
-                        progress.mark_done()
-                        if progress.processed % (50 if use_llm else 200) == 0:
-                            _flush_progress()
-                    else:
-                        _log_classified(result)
-
-            if workers > 1:
-                with ThreadPoolExecutor(max_workers=workers) as pool:
-                    futures = {
-                        pool.submit(_process_item, i, key, record): i
-                        for i, (key, record) in enumerate(work_items)
-                    }
-                    for future in as_completed(futures):
-                        future.result()
-            else:
-                for i, (key, record) in enumerate(work_items):
-                    _process_item(i, key, record)
+        print(f"Compacted {output_path} ({len(output_order)} records)")
 
     elapsed = time.time() - progress.t0
     print(f"\nDone. {progress.processed} records in {elapsed / 60:.1f} min -> {output_path}")
@@ -463,15 +449,15 @@ def main() -> None:
     parser.add_argument(
         "--pass",
         dest="pass_mode",
-        choices=("full", "fast", "deep"),
+        choices=("full", "fast", "deep", "both"),
         default="full",
-        help="LLM pass: fast (pass 1, small model), deep (pass 2, large model), full (all fields)",
+        help="LLM pass: fast (pass 1 fields), deep (pass 2 fields), both (1+2 same model), full (all fields one call)",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=1,
-        help="Parallel threads. Typical: 4 for --pass fast, 2 for --pass deep (match LM Studio slots).",
+        help="Parallel threads. Typical: 4 for --pass fast|both, 2 for --pass deep (match LM Studio slots).",
     )
     parser.add_argument("--limit", type=int, help="Process only first N records (for testing)")
     parser.add_argument("--no-resume", action="store_true", help="Overwrite output")

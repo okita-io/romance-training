@@ -48,6 +48,25 @@ def normalize_whitespace(text: str) -> str:
     return text.strip()
 
 
+def normalize_prose_text(
+    text: str,
+    *,
+    reflow_ocr: bool = True,
+    strip_front_matter: bool = True,
+) -> str:
+    """Normalize line endings, reflow OCR wraps, and strip leading front matter."""
+    text = normalize_whitespace(text)
+    if reflow_ocr:
+        from tools.data_preparation.reflow_prose import reflow_ocr_prose
+
+        text = reflow_ocr_prose(text)
+    if strip_front_matter:
+        from tools.data_preparation.strip_front_matter import strip_front_matter as strip_fm
+
+        text = strip_fm(text).text
+    return text
+
+
 def normalize_genres(value: Any) -> list[str]:
     if value is None:
         return []
@@ -122,9 +141,10 @@ def normalize_record(
     record_index: int | None = None,
     extra: dict[str, Any] | None = None,
     min_words: int = 30,
+    reflow_ocr: bool = True,
 ) -> dict[str, Any] | None:
     """Return a unified corpus record, or None if the text is too short."""
-    text = normalize_whitespace(text)
+    text = normalize_prose_text(text, reflow_ocr=reflow_ocr)
     if word_count(text) < min_words:
         return None
 

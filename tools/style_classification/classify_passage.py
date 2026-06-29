@@ -48,20 +48,20 @@ def classify(
         rubric:         Pre-loaded rubric dict (loaded from disk if None).
         use_llm:        Run LLM-based semantic metrics (slower; ~2-5s per passage).
         llm_model:      Ollama / LM Studio model name (defaults to LLM_MODEL env).
-        pass_mode:      "full" | "fast" | "deep" — see source/multi-pass.md.
-        prior_profile:  Existing style_profile for deep-pass merge (pass 1 labels).
+        pass_mode:      "full" | "fast" | "deep" | "both" — see source/multi-pass.md.
+        prior_profile:  Existing style_profile for deep/both merge (pass 1 labels).
 
     Returns:
         Flat dict of all computed metrics.
     """
     from tools.llm_client import DEFAULT_MODEL
     from tools.style_classification.metrics_computable import compute
-    from tools.style_classification.pass_config import PASS1_LLM_FIELDS, PassMode
+    from tools.style_classification.pass_config import PASS1_LLM_FIELDS, PassMode, pass_complete
 
     if llm_model is None:
         llm_model = DEFAULT_MODEL
 
-    mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep") else "full"
+    mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full"
     prior = prior_profile or {}
 
     profile: dict[str, Any] = compute(text)
@@ -78,6 +78,31 @@ def classify(
             rubric = load_rubric()
         except FileNotFoundError:
             rubric = None
+
+    if mode == "both":
+        if prior:
+            profile.update({k: v for k, v in prior.items() if v is not None})
+
+        if not pass_complete(profile, "fast"):
+            profile.update(
+                assess(text, model=llm_model, rubric=rubric, pass_mode="fast")
+            )
+
+        if not pass_complete(profile, "deep"):
+            prior_for_deep = {k: profile[k] for k in PASS1_LLM_FIELDS if k in profile}
+            profile.update(
+                assess(
+                    text,
+                    model=llm_model,
+                    rubric=rubric,
+                    pass_mode="deep",
+                    prior=prior_for_deep,
+                )
+            )
+
+        if prior:
+            profile.update({k: v for k, v in prior.items() if k in PASS1_LLM_FIELDS and v is not None})
+        return profile
 
     if mode == "deep" and prior:
         profile.update({k: v for k, v in prior.items() if k not in profile})
@@ -105,9 +130,9 @@ def _main() -> None:
     parser.add_argument(
         "--pass",
         dest="pass_mode",
-        choices=("full", "fast", "deep"),
+        choices=("full", "fast", "deep", "both"),
         default="full",
-        help="LLM pass mode (default: full)",
+        help="LLM pass mode (default: full). both = fast+deep field sets, same model",
     )
     args = parser.parse_args()
 

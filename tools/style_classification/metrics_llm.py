@@ -212,7 +212,7 @@ def assess(
     Run LLM analysis on a passage and return semantic style metrics.
 
     Args:
-        pass_mode: "full" (all fields), "fast" (pass 1), or "deep" (pass 2).
+        pass_mode: "full" (all fields), "fast" (pass 1), "deep" (pass 2), or "both" (pass 1 then pass 2).
         fields:    Restrict to these keys (overrides pass_mode when set).
         prior:     Pass 1 labels injected into the prompt for pass 2.
 

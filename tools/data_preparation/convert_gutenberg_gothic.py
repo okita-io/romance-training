@@ -31,6 +31,7 @@ from tools.data_preparation.gutenberg_corpus import (
     title_slug,
 )
 from tools.data_preparation.language_filter import classify_language, detect_language
+from tools.data_preparation.prose_filter import filter_records
 from tools.data_preparation.unified_corpus import normalize_record, slug_from_repo_id
 
 REPO_ID = "Dwaraka/Training_Dataset_of_Project_Gutebberg_Gothic_Fiction"
@@ -143,6 +144,7 @@ def main() -> None:
         print(f"Skipped {len(skipped)} non-English / unknown-language books")
 
     chunk_count: int | None = None
+    skipped_prose: dict[str, int] = {}
     if args.chunk:
         chunks: list[dict[str, Any]] = []
         for chunk in iter_book_chunks(books, target_words=args.chunk_words):
@@ -164,9 +166,12 @@ def main() -> None:
             if record:
                 record["metadata"].update(chunk["metadata"])
                 chunks.append(record)
+        chunks, skipped_prose = filter_records(chunks)
         write_jsonl(chunks, output_dir / "chunks.jsonl")
         chunk_count = len(chunks)
         print(f"Wrote {chunk_count} chunks → {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
+        if skipped_prose:
+            print(f"Prose filter dropped {sum(skipped_prose.values())} non-narrative chunks")
 
     index = {
         "dataset": REPO_ID,
@@ -175,6 +180,7 @@ def main() -> None:
         "book_count": len(stories),
         "skipped_non_english": len(skipped),
         "chunk_count": chunk_count,
+        "prose_filter_dropped": sum(skipped_prose.values()) if args.chunk else 0,
         "titles": [b["title"] for b in books],
     }
     (output_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n", encoding="utf-8")

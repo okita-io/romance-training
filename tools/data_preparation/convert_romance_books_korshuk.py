@@ -28,6 +28,7 @@ from tools.data_preparation.bookrix_metadata import parse_bookrix_metadata
 from tools.data_preparation.convert_hf_sources import iter_parquet
 from tools.data_preparation.gutenberg_corpus import iter_book_chunks, title_slug
 from tools.data_preparation.language_filter import classify_language, detect_language
+from tools.data_preparation.prose_filter import filter_records
 from tools.data_preparation.unified_corpus import normalize_record
 
 REPO_ID = "AlekseyKorshuk/romance-books"
@@ -160,6 +161,7 @@ def main() -> None:
         print(f"Skipped {len(skipped)} non-English / unknown-language books")
 
     chunk_count: int | None = None
+    skipped_prose: dict[str, int] = {}
     if args.chunk:
         chunk_books = [{"text": b["text"], "title": b["title"], "author": b["author"]} for b in books]
         chunks: list[dict[str, Any]] = []
@@ -192,9 +194,12 @@ def main() -> None:
                     "url": source_book.get("url"),
                 })
                 chunks.append(record)
+        chunks, skipped_prose = filter_records(chunks)
         write_jsonl(chunks, output_dir / "chunks.jsonl")
         chunk_count = len(chunks)
         print(f"Wrote {chunk_count} chunks → {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
+        if skipped_prose:
+            print(f"Prose filter dropped {sum(skipped_prose.values())} non-narrative chunks")
 
     index = {
         "dataset": REPO_ID,
@@ -203,6 +208,7 @@ def main() -> None:
         "story_count": len(stories),
         "skipped_non_english": len(skipped),
         "chunk_count": chunk_count,
+        "prose_filter_dropped": sum(skipped_prose.values()) if args.chunk else 0,
     }
     (output_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n", encoding="utf-8")
 

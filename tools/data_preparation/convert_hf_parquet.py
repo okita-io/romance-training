@@ -38,6 +38,7 @@ from tools.data_preparation.gutenberg_corpus import (
     title_slug,
 )
 from tools.data_preparation.language_filter import classify_language, detect_language
+from tools.data_preparation.prose_filter import filter_records
 from tools.data_preparation.unified_corpus import normalize_record, repo_dir_name
 
 MANIFESTS = ROOT / "source-data" / "manifests"
@@ -367,6 +368,11 @@ def main() -> None:
         action="store_true",
         help="Keep plays/dramas (default: exclude when manifest exclude_plays is true)",
     )
+    parser.add_argument(
+        "--skip-prose-filter",
+        action="store_true",
+        help="Do not drop publisher-catalog / TOC / transcriber chunks at convert time",
+    )
     args = parser.parse_args()
 
     slug, manifest = find_manifest(args.dataset)
@@ -385,10 +391,17 @@ def main() -> None:
         limit=args.limit,
     )
 
+    skipped_prose: dict[str, int] = {}
+    if not args.skip_prose_filter:
+        chunks, skipped_prose = filter_records(chunks)
+
     write_jsonl(stories, output_dir / "stories.jsonl")
     write_jsonl(chunks, output_dir / "chunks.jsonl")
     print(f"Wrote {len(stories)} stories -> {(output_dir / 'stories.jsonl').relative_to(ROOT)}")
     print(f"Wrote {len(chunks)} chunks -> {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
+    if skipped_prose:
+        total_dropped = sum(skipped_prose.values())
+        print(f"Prose filter dropped {total_dropped} non-narrative chunks at convert time")
     if skipped_lang:
         write_jsonl(skipped_lang, output_dir / "skipped_non_english.jsonl")
         print(f"Skipped {len(skipped_lang)} non-English / unknown-language rows")
@@ -406,6 +419,7 @@ def main() -> None:
         "chunk_count": len(chunks),
         "skipped_non_english": len(skipped_lang),
         "skipped_plays": len(skipped_plays),
+        "prose_filter_dropped": sum(skipped_prose.values()),
     }
     (output_dir / "index.json").write_text(json.dumps(index, indent=2) + "\n", encoding="utf-8")
 
