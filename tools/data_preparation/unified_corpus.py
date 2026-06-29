@@ -53,6 +53,7 @@ def normalize_prose_text(
     *,
     reflow_ocr: bool = True,
     strip_front_matter: bool = True,
+    strip_victorian_section_titles: bool = True,
 ) -> str:
     """Normalize line endings, reflow OCR wraps, and strip leading front matter."""
     text = normalize_whitespace(text)
@@ -64,6 +65,18 @@ def normalize_prose_text(
         from tools.data_preparation.strip_front_matter import strip_front_matter as strip_fm
 
         text = strip_fm(text).text
+    if strip_victorian_section_titles:
+        from tools.data_preparation.strip_victorian_section_title import (
+            strip_victorian_section_title,
+        )
+
+        text = strip_victorian_section_title(text).text
+    from tools.data_preparation.strip_dedication import strip_dedication_and_boilerplate
+
+    text = strip_dedication_and_boilerplate(text).text
+    from tools.data_preparation.strip_license_agreement import strip_license_agreement
+
+    text = strip_license_agreement(text).text
     return text
 
 

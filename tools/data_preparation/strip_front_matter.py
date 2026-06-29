@@ -16,6 +16,49 @@ _REVIEW_BLURB_RE = re.compile(
     r"\b(?:POST|GAZETTE|HERALD|TIMES|CHRONICLE|OBSERVER)\s+says\s*:",
     re.IGNORECASE,
 )
+_TRANSCRIBER_CONTACT_RE = re.compile(
+    r"\bTranscribed from\b|"
+    r"\bProduced by\b|"
+    r"\bE-text prepared by\b|"
+    r"\bDistributed Proofreading\b|"
+    r"\bProject Gutenberg\b|"
+    r"@pglaf\.org\b|"
+    r"\bemail\s+\S+@",
+    re.IGNORECASE,
+)
+_PICTURE_MARKUP_RE = re.compile(r"^\[(?:Picture|Illustration)", re.IGNORECASE)
+_AUTHOR_BYLINE_RE = re.compile(r"^By\s+[A-Z]", re.MULTILINE)
+_AUTHOR_CATALOG_RE = re.compile(
+    r"\bAuthor\s+_of_\b|"
+    r"\bAUTHOR OF\b|"
+    r"\[Illustration\]",
+    re.IGNORECASE,
+)
+_PUBLISHER_IMPRINT_RE = re.compile(
+    r"\bFIFTH\s+AVENUE\b|"
+    r"\bPALL\s+MALL\b|"
+    r"\bPRINTED\s+BY\b|"
+    r"\bPRINTED\s+IN\s+THE\s+UNITED\s+STATES\b|"
+    r"\b&\s+CO\.\s+\d",
+    re.IGNORECASE,
+)
+_TITLE_PAGE_BLOB_RE = re.compile(
+    r"\bILLUSTRATED\s+BY\b|"
+    r"\bLIST\s+OF\s+ILLUSTRATIONS\b|"
+    r"\bBooksellers\s+to\s+the\s+Queen\b|"
+    r"(?<!TO )VOL\.\s*(?:I{1,3}|IV|VI{0,3}|IX|X{0,3}|\d+)\b|"
+    r"\bBY\s+[A-Z][A-Z\s]{2,40}\.\s+VOL\.\s+",
+    re.IGNORECASE,
+)
+_STANDALONE_ILLUSTRATION_RE = re.compile(
+    r"^\[(?:Picture|Illustration)[^\]]*\]\s*$",
+    re.IGNORECASE,
+)
+_PREFACE_HEADING_RE = re.compile(
+    r"^PREFACE(?:\s+TO\s+(?:(?:VOL\.\s*)?[IVXLC]+)(?:\.\s*)?)+|"
+    r"^PREFACE\.\s*",
+    re.IGNORECASE,
+)
 _PUBLISHER_CATALOG_RE = re.compile(
     r"\b(?:Crown|Post|Small)\s+8vo\b|Mills .{0,3} Boon|illustrated boards|New Novels",
     re.IGNORECASE,
@@ -35,9 +78,11 @@ _SECTION_HEADER_RE = re.compile(
 )
 _CONTENTS_INDEX_RE = re.compile(
     r"^\s*PAGE\s*$|"
+    r"^\s*CHAPTER\s+PAGE\s*$|"
+    r"^(?:I{1,3}|IV|VI{0,3}|IX|X{0,3}|\d{1,3})\.\s+.+\s+\d{1,4}\s*$|"
     r"^[A-Z][A-Z \.'\-,&]{2,60}\s+\d{1,4}\s*$|"
     r"\.{2,}\s*\d{1,4}\s*$",
-    re.MULTILINE,
+    re.MULTILINE | re.IGNORECASE,
 )
 _CHAPTER_HEADING_RE = re.compile(
     r"^CHAPTER\s+(?:"
@@ -99,6 +144,88 @@ def find_lone_roman_chapter_splits(text: str) -> list[str]:
     return [m.group(1).upper() for m in _ROMAN_BETWEEN_PARAS_RE.finditer(text) if _is_valid_roman(m.group(1))]
 
 
+def _is_author_catalog_paragraph(para: str) -> bool:
+    return bool(_AUTHOR_CATALOG_RE.search(para))
+
+
+def _is_publisher_imprint_paragraph(para: str) -> bool:
+    return bool(_PUBLISHER_IMPRINT_RE.search(para))
+
+
+def _is_title_page_blob_paragraph(para: str) -> bool:
+    return bool(_TITLE_PAGE_BLOB_RE.search(para))
+
+
+def _is_illustrations_list_paragraph(para: str) -> bool:
+    if re.search(r"\bLIST OF ILLUSTRATIONS\b", para, re.IGNORECASE):
+        return True
+    if re.search(r"\bFrontispiece\b", para, re.IGNORECASE) and re.search(r"\bPAGE\b", para, re.IGNORECASE):
+        return True
+    return False
+
+
+def _is_standalone_illustration_paragraph(para: str) -> bool:
+    return bool(_STANDALONE_ILLUSTRATION_RE.match(para.strip()))
+
+
+def _trim_leading_preface_heading(text: str) -> str:
+    paragraphs = _paragraphs(text)
+    if not paragraphs:
+        return text
+    first = _PREFACE_HEADING_RE.sub("", paragraphs[0], count=1).strip()
+    if not first:
+        rest = paragraphs[1:]
+    else:
+        paragraphs[0] = first
+        rest = paragraphs
+    return "\n\n".join(rest).strip()
+
+
+def _is_epigraph_paragraph(para: str) -> bool:
+    """Short quoted motto before chapter body (often italicized)."""
+    stripped = para.strip()
+    words = stripped.split()
+    if len(words) > 25:
+        return False
+    if stripped.startswith(('"', "'")) and stripped.endswith(('"', "'")):
+        return True
+    return bool(re.match(r'^["\']_.+_["\']\'?$', stripped))
+
+
+def _is_transcriber_contact_paragraph(para: str) -> bool:
+    if _AUTHOR_CATALOG_RE.search(para):
+        return True
+    if _PICTURE_MARKUP_RE.search(para):
+        return True
+    if _TRANSCRIBER_CONTACT_RE.search(para):
+        return True
+    return False
+
+
+def _is_author_byline_paragraph(para: str) -> bool:
+    lines = [ln.strip() for ln in para.split("\n") if ln.strip()]
+    return len(lines) == 1 and bool(_AUTHOR_BYLINE_RE.match(lines[0]))
+
+
+def _is_italic_preface_paragraph(para: str) -> bool:
+    """Gutenberg editor/translator notes wrapped in ``_underscores_``."""
+    stripped = para.strip()
+    if not stripped.startswith("_"):
+        return False
+    if stripped.endswith("_") and len(stripped) > 20:
+        return True
+    underscore_runs = len(re.findall(r"_[^_]{2,}_", stripped))
+    return underscore_runs >= 3
+
+
+def _is_compact_toc_paragraph(para: str) -> bool:
+    """Single-paragraph TOC: ``PAGE`` column plus many ``TITLE 327`` entries."""
+    if re.search(r"\bPAGE\b", para, re.IGNORECASE) and len(re.findall(r"\b\d{2,4}\b", para)) >= 4:
+        return True
+    entries = re.findall(r"[A-Z][A-Z '\-,&]{3,55}\s+\d{2,4}\b", para)
+    return len(entries) >= 5
+
+
 def _is_title_heading(para: str) -> bool:
     line = para.strip()
     if not line or len(line.split()) > 12:
@@ -113,6 +240,26 @@ def _is_title_heading(para: str) -> bool:
 
 
 def _is_front_matter_paragraph(para: str) -> bool:
+    if _is_title_page_blob_paragraph(para):
+        return True
+    if _is_illustrations_list_paragraph(para):
+        return True
+    if _is_standalone_illustration_paragraph(para):
+        return True
+    if _is_author_catalog_paragraph(para):
+        return True
+    if _is_publisher_imprint_paragraph(para):
+        return True
+    if _is_epigraph_paragraph(para):
+        return True
+    if _is_transcriber_contact_paragraph(para):
+        return True
+    if _is_author_byline_paragraph(para):
+        return True
+    if _is_italic_preface_paragraph(para):
+        return True
+    if _is_compact_toc_paragraph(para):
+        return True
     if _REVIEW_BLURB_RE.search(para):
         return True
     if _PUBLISHER_CATALOG_RE.search(para):
@@ -122,8 +269,6 @@ def _is_front_matter_paragraph(para: str) -> bool:
     if _SECTION_HEADER_RE.match(para.strip()):
         return True
     if _CONTENTS_INDEX_RE.search(para):
-        return True
-    if re.search(r"Produced by|Distributed Proofreading|Project Gutenberg", para, re.I):
         return True
     return False
 
@@ -144,6 +289,24 @@ def _is_contents_block_paragraph(para: str) -> bool:
 
 
 def _is_narrative_paragraph(para: str) -> bool:
+    if _is_title_page_blob_paragraph(para):
+        return False
+    if _is_illustrations_list_paragraph(para):
+        return False
+    if _is_standalone_illustration_paragraph(para):
+        return False
+    if _is_author_catalog_paragraph(para):
+        return False
+    if _is_publisher_imprint_paragraph(para):
+        return False
+    if _is_epigraph_paragraph(para):
+        return False
+    if _is_transcriber_contact_paragraph(para):
+        return False
+    if _is_italic_preface_paragraph(para):
+        return False
+    if _is_compact_toc_paragraph(para):
+        return False
     words = para.split()
     if len(words) < 8:
         return False
@@ -184,6 +347,15 @@ def _find_roman_chapter_body_start(paragraphs: list[str]) -> int | None:
     return None
 
 
+def _is_inline_preface_paragraph(para: str) -> bool:
+    """``PREFACE TO VOL. III. Before taking leave…`` — heading plus body in one paragraph."""
+    stripped = para.strip()
+    if not re.match(r"^PREFACE\b", stripped, re.I):
+        return False
+    body = _PREFACE_HEADING_RE.sub("", stripped, count=1).strip()
+    return len(body.split()) >= 8
+
+
 def _is_contents_header(para: str) -> bool:
     stripped = para.strip()
     upper = stripped.upper()
@@ -203,6 +375,8 @@ def find_body_start(paragraphs: list[str]) -> int:
         _is_narrative_paragraph(paragraphs[0])
         and not _is_front_matter_paragraph(paragraphs[0])
         and not _is_title_heading(paragraphs[0])
+        and not _is_transcriber_contact_paragraph(paragraphs[0])
+        and not _is_italic_preface_paragraph(paragraphs[0])
     ):
         return 0
 
@@ -236,6 +410,8 @@ def find_body_start(paragraphs: list[str]) -> int:
             continue
 
         if re.match(r"^PREFACE\b", stripped, re.I):
+            if _is_inline_preface_paragraph(para):
+                return i
             mode = "preface"
             front_seen = True
             continue
@@ -258,6 +434,12 @@ def find_body_start(paragraphs: list[str]) -> int:
 
         if _is_front_matter_paragraph(para) or _is_contents_block_paragraph(para):
             front_seen = True
+            continue
+
+        if _is_title_heading(para) and front_seen:
+            next_para = paragraphs[i + 1] if i + 1 < len(paragraphs) else None
+            if next_para and _is_narrative_paragraph(next_para):
+                return i + 1
             continue
 
         next_para = paragraphs[i + 1] if i + 1 < len(paragraphs) else None
@@ -300,7 +482,7 @@ def strip_front_matter(text: str, *, min_words: int = 30) -> StripResult:
     if start <= 0:
         return StripResult(text, False)
 
-    stripped = "\n\n".join(paragraphs[start:]).strip()
+    stripped = _trim_leading_preface_heading("\n\n".join(paragraphs[start:]).strip())
     if len(stripped.split()) < min_words:
         return StripResult(text, False, reason="too_short_after_strip")
 

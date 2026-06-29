@@ -157,6 +157,16 @@ def cmd_classify_next(args: argparse.Namespace) -> None:
     styled_dir.mkdir(parents=True, exist_ok=True)
     styled_path = styled_dir / f"seg_{seg['segment_index']:03d}.jsonl"
 
+    rows = seg.get("rows", "?")
+    size_mb = (seg.get("bytes") or 0) / (1024 * 1024)
+    resumed = seg.get("classification_status") == "in_progress"
+    print(
+        f"Segment {seg_id} — {rows} rows, {size_mb:.1f} MB"
+        + (" (resuming interrupted run)" if resumed else "")
+    )
+    print(f"  input  -> {input_path.relative_to(ROOT)}")
+    print(f"  output -> {styled_path.relative_to(ROOT)}")
+
     seg["classification_status"] = "in_progress"
     seg["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     ledger.segments[seg_id] = seg
@@ -177,7 +187,11 @@ def cmd_classify_next(args: argparse.Namespace) -> None:
     if args.quiet:
         cmd.append("--quiet")
     print("Running:", " ".join(cmd))
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError:
+        print(f"Segment {seg_id} failed — status left as in_progress; rerun classify-next to resume.")
+        raise
 
     pass_fast = args.pass_mode in ("fast", "full", "both")
     pass_deep = args.pass_mode in ("deep", "full", "both")
@@ -309,7 +323,10 @@ def main() -> None:
     p_imp.add_argument("--mark-deep", action="store_true", help="Mark segments as deep-pass complete")
     p_imp.set_defaults(func=cmd_import_styled)
 
-    p_cls = sub.add_parser("classify-next", help="Run Phase 2 on the next pending segment")
+    p_cls = sub.add_parser(
+        "classify-next",
+        help="Classify the next pending segment (one segment per invocation)",
+    )
     p_cls.add_argument("--corpus", required=True)
     p_cls.add_argument("--pass", dest="pass_mode", default="both", choices=("fast", "deep", "full", "both"))
     p_cls.add_argument("--workers", type=int, default=4)

@@ -77,14 +77,18 @@ def filter_jsonl_file(
                     continue
                 record = json.loads(line)
                 text = record.get("text") or ""
+                text = normalize_prose_text(
+                    text,
+                    reflow_ocr=reflow_ocr,
+                    strip_front_matter=True,
+                )
+                record = dict(record)
+                record["text"] = text
+                metadata = dict(record.get("metadata") or {})
+                metadata["word_count"] = len(text.split())
                 if reflow_ocr:
-                    text = normalize_prose_text(text, reflow_ocr=True, strip_front_matter=True)
-                    record = dict(record)
-                    record["text"] = text
-                    metadata = dict(record.get("metadata") or {})
-                    metadata["word_count"] = len(text.split())
                     metadata["text_reflowed"] = True
-                    record["metadata"] = metadata
+                record["metadata"] = metadata
                 quality = classify_chunk_prose(text, min_words=min_words)
 
                 if quality.verdict == "non_prose":

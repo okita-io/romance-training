@@ -182,14 +182,16 @@ class Ledger:
         self.segments[seg_id] = seg
 
     def next_pending(self, corpus: str) -> dict[str, Any] | None:
-        pending = [
-            s for s in self.segments.values()
-            if s.get("corpus") == corpus and s.get("classification_status") == "pending"
-        ]
-        if not pending:
-            return None
-        pending.sort(key=lambda s: s.get("segment_index", 0))
-        return pending[0]
+        """Lowest-index segment that is pending or was interrupted (in_progress)."""
+        for status in ("in_progress", "pending"):
+            candidates = [
+                s for s in self.segments.values()
+                if s.get("corpus") == corpus and s.get("classification_status") == status
+            ]
+            if candidates:
+                candidates.sort(key=lambda s: s.get("segment_index", 0))
+                return candidates[0]
+        return None
 
     def available_for_training(self, corpus: str) -> list[dict[str, Any]]:
         out = [

@@ -46,9 +46,11 @@ python tools/incremental/manage.py segment --all
 # 3. Horror is already classified — import into ledger
 python tools/incremental/manage.py import-styled --corpus horror_novel_chunks
 
-# 4. Classify one segment at a time (repeat per corpus)
+# 4. Classify one ~50 MB segment at a time (repeat until status shows 0 pending)
 python tools/incremental/manage.py classify-next \
-  --corpus literotica_stories --pass fast --workers 4
+  --corpus literotica_stories --pass both --workers 4
+# Picks lowest pending seg_000, seg_001, …; processes entire segment file, then stops.
+# Re-run the same command for the next segment. Interrupted runs resume the same segment.
 
 # 5. Build a mixed batch: up to 50 MB styled per corpus
 python tools/incremental/manage.py build-batch --max-mb 50
