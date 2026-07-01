@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
@@ -16,6 +17,10 @@ _CHAPTER_RE = re.compile(r"^CHAPTER (\d+)\b", re.IGNORECASE)
 _SECTION_RE = re.compile(r"^(\d+(?:\.\d+)+)\s+(.+)$")
 _CHECKLIST_HEADING_RE = re.compile(r"^3\.1\b.*checklist", re.IGNORECASE)
 _SUBSECTION_LETTER_RE = re.compile(r"^([A-D]):\s*(.+)$", re.IGNORECASE)
+# Numbered checklist item: "5 NOUN PHRASES. Are they …" (uppercase heading,
+# optional OCR footnote marker like \( ^{[43]} \) before the period).
+_CHECKLIST_ITEM_RE = re.compile(r"^(\d+)\s+([A-Z][A-Z'\- ]*[A-Z])\s*(?:\\\(.*?\\\))?\s*\.\s*(.*)$")
+_BRACKET_ONLY_RE = re.compile(r"^\[.*\]$")
 
 _SERIES_NOISE = (
     "english language series",
@@ -131,6 +136,29 @@ def split_pages(text: str) -> list[tuple[int, str]]:
     return pages
 
 
+def _detect_running_headers(pages: list[tuple[int, str]], *, min_repeats: int = 3) -> set[str]:
+    """
+    Identify running page headers (book/chapter titles repeated at the top of pages).
+
+    The vision transcription keeps headers like 'Style in Fiction' or 'A method of
+    analysis and some examples' as the first content line of each page; left in place
+    they get spliced mid-sentence into body text that spans a page break.
+    """
+    counts: Counter[str] = Counter()
+    for _, page_text in pages:
+        for raw_line in page_text.splitlines():
+            line = raw_line.strip()
+            if not line or _IMAGE_RE.match(line) or _PAGE_NUM_ONLY_RE.match(line):
+                continue
+            counts[line] += 1
+            break
+    return {
+        line
+        for line, n in counts.items()
+        if n >= min_repeats and not _SECTION_RE.match(line) and not _CHAPTER_RE.match(line)
+    }
+
+
 def parse_manuscript(text: str, *, min_section_chars: int = 200) -> list[ManuscriptSection]:
     """
     Parse Style-in-Fiction.parsed.md into filtered, section-tagged blocks.
@@ -145,6 +173,9 @@ def parse_manuscript(text: str, *, min_section_chars: int = 200) -> list[Manuscr
     current_title = "Front matter"
     current_lines: list[str] = []
     current_page: int | None = None
+
+    pages = split_pages(text)
+    running_headers = _detect_running_headers(pages)
 
     sections: list[ManuscriptSection] = []
 
@@ -170,11 +201,18 @@ def parse_manuscript(text: str, *, min_section_chars: int = 200) -> list[Manuscr
         )
         current_lines = []
 
-    for page_num, page_text in split_pages(text):
+    for page_num, page_text in pages:
+        at_page_top = True
         for raw_line in page_text.splitlines():
             line = _normalize_line(raw_line)
             if _is_noise_line(line, in_front_matter=in_front_matter):
                 continue
+            # Drop running headers, but only at the top of a page so genuine
+            # in-text occurrences of the same phrase survive.
+            if at_page_top and line in running_headers:
+                continue
+            if line:
+                at_page_top = False
 
             if in_front_matter and (
                 line == "Introduction"
@@ -216,10 +254,11 @@ def extract_checklist_items(section: ManuscriptSection) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     current_group = "general"
     current_sub = ""
+    current_item: int | None = None
     buf: list[str] = []
 
     def flush_item() -> None:
-        nonlocal buf, current_sub
+        nonlocal buf
         text = " ".join(buf).strip()
         buf = []
         if len(text) < 20:
@@ -229,33 +268,38 @@ def extract_checklist_items(section: ManuscriptSection) -> list[dict[str, Any]]:
             "id": item_id[:80],
             "group": current_group,
             "subgroup": current_sub or None,
+            "item": current_item,
             "prompt": text,
             "source_section": "3.1",
         })
 
     for line in section.content.splitlines():
-        sub_m = _SUBSECTION_LETTER_RE.match(line.strip())
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # Page-reference stubs like "[For notes (i–xiv) on the categories see pp. 66–7]"
+        if _BRACKET_ONLY_RE.match(stripped):
+            continue
+
+        sub_m = _SUBSECTION_LETTER_RE.match(stripped)
         if sub_m:
             flush_item()
             current_group = sub_m.group(1).lower()
             current_sub = sub_m.group(2).strip()
+            current_item = None
             continue
 
-        num_m = re.match(
-            r"^(\d+)\s+(GENERAL|NOUNS|ADJECTIVES|VERBS|ADVERBS|SENTENCE|CLAUSE|WORD|OTHER|GRAMMATICAL|PHONOLOGICAL|TROPES|COHESION|CONTEXT)\b",
-            line.strip(),
-            re.IGNORECASE,
-        )
+        num_m = _CHECKLIST_ITEM_RE.match(stripped)
         if num_m:
             flush_item()
-            current_sub = num_m.group(2).title()
-            rest = line.strip()[len(num_m.group(0)) :].strip()
+            current_item = int(num_m.group(1))
+            current_sub = num_m.group(2).capitalize()
+            rest = num_m.group(3).strip()
             if rest:
-                buf = [rest.lstrip(". ")]
+                buf = [rest]
             continue
 
-        if line.strip():
-            buf.append(line.strip())
+        buf.append(stripped)
 
     flush_item()
     return items

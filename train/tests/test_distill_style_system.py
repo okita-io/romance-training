@@ -46,6 +46,43 @@ This principle can be seen as an extension of the end-focus principle, for it sa
 """
 
 
+SAMPLE_PAGE_BREAK = """\
+<PAGE>
+Contents
+Introduction 1
+<PAGE>
+Introduction
+Aim
+An earlier book in this series was written with the aim of showing the student of English that examining the language of a literary text can be a means to a fuller understanding and appreciation of the writer's artistic achievement.
+<PAGE>
+Style in Fiction
+Some ordinary body text that continues the introduction with enough length to keep the section alive across pages.
+<PAGE>
+A method of analysis and some examples
+More body text on a later page, again long enough to matter for the parser.
+<PAGE>
+3.1 A checklist of linguistic and stylistic categories
+A: Lexical categories
+[For notes (i–xiv) on the categories see pp. 66–7]
+1 GENERAL. Is the vocabulary simple or complex?
+B: Grammatical categories
+4 CLAUSE STRUCTURE. Is there anything significant about clause elements?
+5 NOUN PHRASES. Are they relatively simple or complex?
+6 VERB PHRASES. Are there any significant departures from the use of the simple past tense? For example, notice occurrences and functions of the present tense; of the perfective
+62
+<PAGE>
+A method of analysis and some examples
+aspect (e.g. has/had appeared); of modal auxiliaries (e.g. can, must, would, etc.). Look out for phrasal verbs and how they are used.
+7 OTHER PHRASE TYPES. Is there anything to be said about other phrase types?
+D: Context and cohesion
+1 COHESION \\( ^{[43]} \\) . Does the text contain logical or other links between sentences?
+<PAGE>
+A method of analysis and some examples
+3.2 Notes on the categories
+Some notes text follows here so the section has content beyond the heading itself.
+"""
+
+
 def test_parse_manuscript_skips_front_matter() -> None:
     sections = parse_manuscript(SAMPLE_PARSED, min_section_chars=80)
     titles = [s.title for s in sections]
@@ -67,6 +104,41 @@ def test_parse_manuscript_tags_textual_section() -> None:
     climax = [s for s in sections if "climax" in s.title.lower()]
     assert climax
     assert "textual" in climax[0].categories
+
+
+def _checklist_items(sample: str) -> list[dict]:
+    sections = parse_manuscript(sample, min_section_chars=40)
+    items: list[dict] = []
+    for s in sections:
+        if s.is_checklist or s.section_id == "3.1":
+            items.extend(extract_checklist_items(s))
+    return items
+
+
+def test_checklist_items_are_not_merged() -> None:
+    items = _checklist_items(SAMPLE_PAGE_BREAK)
+    subs = [i["subgroup"] for i in items]
+    assert "Clause structure" in subs
+    assert "Noun phrases" in subs
+    assert "Verb phrases" in subs
+    assert "Other phrase types" in subs
+    clause = next(i for i in items if i["subgroup"] == "Clause structure")
+    assert "NOUN PHRASES" not in clause["prompt"]
+    assert "VERB PHRASES" not in clause["prompt"]
+
+
+def test_running_header_stripped_across_page_break() -> None:
+    items = _checklist_items(SAMPLE_PAGE_BREAK)
+    verb = next(i for i in items if i["subgroup"] == "Verb phrases")
+    assert "A method of analysis" not in verb["prompt"]
+    assert "of the perfective aspect (e.g. has/had appeared)" in verb["prompt"]
+
+
+def test_checklist_skips_notes_stub_and_cleans_markers() -> None:
+    items = _checklist_items(SAMPLE_PAGE_BREAK)
+    assert not any("For notes (i–xiv)" in i["prompt"] for i in items)
+    cohesion = next(i for i in items if i["subgroup"] == "Cohesion")
+    assert cohesion["prompt"].startswith("Does the text contain")
 
 
 def test_distill_writes_rubric_shape(tmp_path: Path) -> None:

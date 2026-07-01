@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "source": "Style in Fiction — Leech & Short (2nd ed., parsed manuscript)",
-  "system_prompt": "You are a literary stylistician trained in Geoffrey Leech and Mick Short's *Style in Fiction* framework.\n\nAnalyse prose using these layers:\n1. Lexis — vocabulary, register, semantic fields, collocation\n2. Grammar/syntax — sentence types, complexity, clause structure\n3. Figures — schemes and tropes, foregrounding\n4. Cohesion & context — reference, conjunction, speech presentation, tone\n5. Textual dynamics — segmentation, end-focus, climax, given/new information\n6. Viewpoint — POV, narrative distance, mind style, free indirect discourse\n\nApply 21 Section 3.1 checklist prompts where relevant.\nScore textual principles: end_focus, segmentation, prose_rhythm, climax, subordination_salience, textual_relations.\nReturn JSON for dimensions: lexical_complexity, register, sentence_complexity, figurative_density, cohesion, mind_style, pov, narrative_distance, free_indirect_discourse, tone.\nGround judgments in observable linguistic evidence from the passage.",
+  "system_prompt": "You are a literary stylistician trained in Geoffrey Leech and Mick Short's *Style in Fiction* framework.\n\nAnalyse prose using these layers:\n1. Lexis — vocabulary, register, semantic fields, collocation\n2. Grammar/syntax — sentence types, complexity, clause structure\n3. Figures — schemes and tropes, foregrounding\n4. Cohesion & context — reference, conjunction, speech presentation, tone\n5. Textual dynamics — segmentation, end-focus, climax, given/new information\n6. Viewpoint — POV, narrative distance, mind style, free indirect discourse\n\nApply 22 Section 3.1 checklist prompts where relevant.\nScore textual principles: end_focus, segmentation, prose_rhythm, climax, subordination_salience, textual_relations.\nReturn JSON for dimensions: lexical_complexity, register, sentence_complexity, figurative_density, cohesion, mind_style, pov, narrative_distance, free_indirect_discourse, tone.\nGround judgments in observable linguistic evidence from the passage.",
   "analysis_protocol": [
     "Read for overall literary effect.",
     "Survey lexis (checklist A).",
@@ -213,7 +213,7 @@
       "id": "pov",
       "category": "viewpoint",
       "name": "Narrative Point of View",
-      "source_section": "3.1.D.2",
+      "source_section": "5.5.1",
       "definition": "Grammatical person and access to interiority.",
       "computation": "llm",
       "metric_type": "categorical",
@@ -248,7 +248,7 @@
       "id": "free_indirect_discourse",
       "category": "viewpoint",
       "name": "Free Indirect Discourse",
-      "source_section": "3.1.D.2",
+      "source_section": "10.1.4",
       "definition": "Blending of narrator and character voice.",
       "computation": "llm",
       "metric_type": "ordinal",
@@ -264,7 +264,7 @@
       "id": "tone",
       "category": "context",
       "name": "Tone",
-      "source_section": "3.1.D.2",
+      "source_section": "8.5",
       "definition": "Affective and attitudinal register.",
       "computation": "llm",
       "metric_type": "categorical",
@@ -343,20 +343,15 @@
       "id": "general_the_categories_are_placed_under_four_gen",
       "group": "general",
       "subgroup": null,
+      "item": null,
       "prompt": "The categories are placed under four general headings: lexical categories, grammatical categories, figures of speech, and cohesion and context. Semantic categories are not listed separately, since, as suggested in section 2.9, it is easier to arrive at these through other categories; for example, we use our lexical categories to find out how choice of words involves various types of meaning. Since the purpose of the list is heuristic, there is no harm in mixing categories in this way. It is also in the nature of things that categories will overlap, so that the same feature may well be noted under different headings.",
-      "source_section": "3.1"
-    },
-    {
-      "id": "a_lexical_categories_for_notes_i_xiv_on_the_categories_see",
-      "group": "a",
-      "subgroup": "Lexical categories",
-      "prompt": "[For notes (i–xiv) on the categories see pp. 66–7]",
       "source_section": "3.1"
     },
     {
       "id": "a_general_is_the_vocabulary_simple_or_complex",
       "group": "a",
       "subgroup": "General",
+      "item": 1,
       "prompt": "Is the vocabulary simple or complex \\( ^{10} \\) ? formal or colloquial? descriptive or evaluative? general or specific? How far does the writer make use of the emotive and other associations of words, as opposed to their referential meaning? Does the text contain idiomatic phrases or notable collocations \\( ^{11} \\) , and if so, with what kind of dialect or register \\( ^{12} \\)  are these idioms or collocations associated? Is there any use of rare or specialised vocabulary? Are any particular morphological categories noteworthy (e.g. compound words, words with particular suffixes)? To what semantic fields do words belong?",
       "source_section": "3.1"
     },
@@ -364,6 +359,7 @@
       "id": "a_nouns_are_the_nouns_abstract_or_concrete_what",
       "group": "a",
       "subgroup": "Nouns",
+      "item": 2,
       "prompt": "Are the nouns abstract or concrete? What kinds of abstract nouns occur (e.g. nouns referring to events, perceptions, processes, moral qualities, social qualities)? What use is made of proper names? Collective nouns?",
       "source_section": "3.1"
     },
@@ -371,6 +367,7 @@
       "id": "a_adjectives_are_the_adjectives_frequent_to_what_kin",
       "group": "a",
       "subgroup": "Adjectives",
+      "item": 3,
       "prompt": "Are the adjectives frequent? To what kinds of attribute do adjectives refer? Physical? Psychological? Visual? Auditory? Colour? Referential? Emotive? Evaluative? etc. Are adjectives restrictive or non-restrictive? Gradable or non-gradable? Attributive or predicative?",
       "source_section": "3.1"
     },
@@ -378,6 +375,7 @@
       "id": "a_verbs_do_the_verbs_carry_an_important_part_of",
       "group": "a",
       "subgroup": "Verbs",
+      "item": 4,
       "prompt": "Do the verbs carry an important part of the meaning? Are they stative (referring to states) or dynamic (referring to actions, events, etc.)? Do they 'refer' to movements, physical acts, speech acts, psychological states or activities, perceptions, etc.? Are they transitive, intransitive, linking (intensive), etc.? Are they factive or non-factive \\( ^{(iv)} \\) ?",
       "source_section": "3.1"
     },
@@ -385,42 +383,56 @@
       "id": "a_adverbs_are_adverbs_frequent_what_semantic_func",
       "group": "a",
       "subgroup": "Adverbs",
+      "item": 5,
       "prompt": "Are adverbs frequent? What semantic functions do they perform (manner, place, direction, time, degree, etc.)? Is there any significant use of sentence adverbs (conjuncts such as so, therefore, however; disjuncts such as certainly, obviously, frankly) \\( ^{(v)} \\) ?",
       "source_section": "3.1"
     },
     {
-      "id": "b_sentence_types_does_the_author_use_only_statemen",
+      "id": "b_sentence_types_does_the_author_use_only_statements_dec",
       "group": "b",
-      "subgroup": "Sentence",
-      "prompt": "TYPES. Does the author use only statements (declarative sentences), or do questions, commands, exclamations or minor sentence types (such as sentences with no verb) also occur in the text? If these other types appear, what is their function?",
+      "subgroup": "Sentence types",
+      "item": 1,
+      "prompt": "Does the author use only statements (declarative sentences), or do questions, commands, exclamations or minor sentence types (such as sentences with no verb) also occur in the text? If these other types appear, what is their function?",
       "source_section": "3.1"
     },
     {
-      "id": "b_sentence_complexity_do_sentences_on_the_whole_ha",
+      "id": "b_sentence_complexity_do_sentences_on_the_whole_have_a_simple",
       "group": "b",
-      "subgroup": "Sentence",
-      "prompt": "COMPLEXITY. Do sentences on the whole have a simple or a complex structure? What is the average sentence length (in number of words)? What is the ratio of dependent to independent clauses? Does complexity vary strikingly from one sentence to another? Is complexity mainly due to (i) coordination, (ii) subordination, or (iii) parataxis (juxtaposition of clauses or other equivalent structures)? In what parts of a sentence does complexity tend to occur? For instance, is there any notable occurrence of anticipatory structure (e.g. of complex subjects preceding the verbs, of dependent clauses preceding the subject of a main clause)?",
+      "subgroup": "Sentence complexity",
+      "item": 2,
+      "prompt": "Do sentences on the whole have a simple or a complex structure? What is the average sentence length (in number of words)? What is the ratio of dependent to independent clauses? Does complexity vary strikingly from one sentence to another? Is complexity mainly due to (i) coordination, (ii) subordination, or (iii) parataxis (juxtaposition of clauses or other equivalent structures)? In what parts of a sentence does complexity tend to occur? For instance, is there any notable occurrence of anticipatory structure (e.g. of complex subjects preceding the verbs, of dependent clauses preceding the subject of a main clause)?",
       "source_section": "3.1"
     },
     {
-      "id": "b_clause_types_what_types_of_dependent_clause_ar",
+      "id": "b_clause_types_what_types_of_dependent_clause_are_favou",
       "group": "b",
-      "subgroup": "Clause",
-      "prompt": "TYPES. What types of dependent clause are favoured: relative clauses, adverbial clauses, different types of nominal clauses (that-clauses, wh-clauses, etc.)? Are reduced or non-finite clauses commonly used and, if so, of what type are they (infinitive clauses, -ing clauses, -ed clauses, verbless clauses) \\( ^{(vi)} \\) ?",
+      "subgroup": "Clause types",
+      "item": 3,
+      "prompt": "What types of dependent clause are favoured: relative clauses, adverbial clauses, different types of nominal clauses (that-clauses, wh-clauses, etc.)? Are reduced or non-finite clauses commonly used and, if so, of what type are they (infinitive clauses, -ing clauses, -ed clauses, verbless clauses) \\( ^{(vi)} \\) ?",
       "source_section": "3.1"
     },
     {
-      "id": "b_clause_structure_is_there_anything_significant",
+      "id": "b_clause_structure_is_there_anything_significant_about_clau",
       "group": "b",
-      "subgroup": "Clause",
-      "prompt": "STRUCTURE. Is there anything significant about clause elements (e.g. frequency of objects, complements, adverbials; of transitive or intransitive verb constructions) \\( ^{(viii)} \\) ? Are there any unusual orderings (initial adverbials, fronting of object or complement, etc.)? Do special kinds of clause construction occur (such as those with preparatory it or there)? 5 NOUN PHRASES. Are they relatively simple or complex? Where does the complexity lie (in premodification by adjectives, nouns, etc., or in postmodification by prepositional phrases, relative clauses, etc.)? Note occurrence of listings (e.g. sequences of adjectives), coordination or apposition. 6 VERB PHRASES. Are there any significant departures from the use of the simple past tense? For example, notice occurrences and functions of the present tense; of the progressive aspect (e.g. was lying); of the perfective A method of analysis and some examples aspect (e.g. has/had appeared); of modal auxiliaries (e.g. can, must, would, etc.). Look out for phrasal verbs and how they are used.",
+      "subgroup": "Clause structure",
+      "item": 4,
+      "prompt": "Is there anything significant about clause elements (e.g. frequency of objects, complements, adverbials; of transitive or intransitive verb constructions) \\( ^{(viii)} \\) ? Are there any unusual orderings (initial adverbials, fronting of object or complement, etc.)? Do special kinds of clause construction occur (such as those with preparatory it or there)?",
       "source_section": "3.1"
     },
     {
-      "id": "b_other_phrase_types_is_there_anything_to_be_sa",
+      "id": "b_noun_phrases_are_they_relatively_simple_or_complex_w",
       "group": "b",
-      "subgroup": "Other",
-      "prompt": "PHRASE TYPES. Is there anything to be said about other phrase types: prepositional phrases, adverb phrases, adjective phrases?",
+      "subgroup": "Noun phrases",
+      "item": 5,
+      "prompt": "Are they relatively simple or complex? Where does the complexity lie (in premodification by adjectives, nouns, etc., or in postmodification by prepositional phrases, relative clauses, etc.)? Note occurrence of listings (e.g. sequences of adjectives), coordination or apposition.",
+      "source_section": "3.1"
+    },
+    {
+      "id": "b_verb_phrases_are_there_any_significant_departures_fro",
+      "group": "b",
+      "subgroup": "Verb phrases",
+      "item": 6,
+      "prompt": "Are there any significant departures from the use of the simple past tense? For example, notice occurrences and functions of the present tense; of the progressive aspect (e.g. was lying); of the perfective aspect (e.g. has/had appeared); of modal auxiliaries (e.g. can, must, would, etc.). Look out for phrasal verbs and how they are used.",
       "source_section": "3.1"
     }
   ]
