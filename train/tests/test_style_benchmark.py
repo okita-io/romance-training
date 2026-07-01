@@ -10,7 +10,9 @@ from tools.style_evaluation.benchmark import (
     build_scene_prompt,
     build_setup_prompt,
     compare_runs,
+    compare_training_sessions,
     compute_delta,
+    format_sessions_report,
     generate_run_roster,
     iter_benchmark_cases,
     load_fixture,
@@ -141,3 +143,95 @@ def test_style_target_lines_cover_rubric_layers() -> None:
     joined = "\n".join(lines)
     assert "Figurative Density" in joined
     assert "POV" in joined
+
+
+def _bench_record(
+    plot_id: str,
+    scene_type: str,
+    *,
+    match_score: float,
+    label: str,
+    model: str,
+    field_matches: dict[str, bool] | None = None,
+) -> dict:
+    fields = {}
+    for key in COMPARE_FIELDS:
+        matched = (field_matches or {}).get(key, match_score >= 0.5)
+        fields[key] = {"target": "t", "actual": "t" if matched else "x", "match": matched}
+    return {
+        "plot_id": plot_id,
+        "scene_type": scene_type,
+        "label": label,
+        "model": model,
+        "delta": {"match_score": match_score, "fields": fields},
+    }
+
+
+def test_compare_training_sessions_trend() -> None:
+    cases = [
+        ("plot_01", "opening"),
+        ("plot_01", "climax_reveal"),
+        ("plot_02", "opening"),
+    ]
+    baseline = [
+        _bench_record(pid, sid, match_score=0.4, label="baseline", model="base")
+        for pid, sid in cases
+    ]
+    mid = [
+        _bench_record(pid, sid, match_score=0.55, label="batch_001", model="ft1")
+        for pid, sid in cases
+    ]
+    final = [
+        _bench_record(
+            pid,
+            sid,
+            match_score=0.7,
+            label="batch_002",
+            model="ft2",
+            field_matches={"register": True, "pov": True, "tone": True},
+        )
+        for pid, sid in cases
+    ]
+
+    report = compare_training_sessions(
+        [("baseline", baseline), ("batch_001", mid), ("batch_002", final)]
+    )
+    trend = report["conformity_trend"]
+    assert trend["direction"] == "improved"
+    assert trend["first_to_last_delta"] == 0.3
+    assert len(trend["steps"]) == 2
+    assert trend["steps"][0]["mean_score_delta"] == 0.15
+    assert len(report["vs_baseline"]) == 2
+    assert report["vs_baseline"][-1]["vs_baseline_delta"] == 0.3
+    assert "register" in report["field_trends"]
+    assert report["field_trends"]["register"]["direction"] == "improved"
+
+    text = format_sessions_report(report)
+    assert "batch_002" in text
+    assert "improved" in text.lower()
+
+
+def test_compare_runs_field_hit_rate_delta() -> None:
+    base = [
+        _bench_record(
+            "plot_01",
+            "opening",
+            match_score=0.25,
+            label="b",
+            model="base",
+            field_matches={"register": False, "pov": False},
+        )
+    ]
+    cand = [
+        _bench_record(
+            "plot_01",
+            "opening",
+            match_score=0.75,
+            label="c",
+            model="ft",
+            field_matches={k: True for k in COMPARE_FIELDS},
+        )
+    ]
+    report = compare_runs(base, cand)
+    assert "field_hit_rate_delta" in report
+    assert report["field_hit_rate_delta"]["register"]["delta"] > 0

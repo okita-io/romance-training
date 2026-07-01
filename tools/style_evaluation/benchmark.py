@@ -519,24 +519,104 @@ def aggregate_run(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _case_key(r: dict[str, Any]) -> tuple[str, str]:
+    return (r["plot_id"], r["scene_type"])
+
+
+def _field_hit_rate_delta(
+    earlier: dict[str, float],
+    later: dict[str, float],
+) -> dict[str, dict[str, Any]]:
+    """Per-dimension hit-rate change between two aggregate summaries."""
+    out: dict[str, dict[str, Any]] = {}
+    for key in COMPARE_FIELDS:
+        before = earlier.get(key)
+        after = later.get(key)
+        if before is None and after is None:
+            continue
+        before_v = before if before is not None else 0.0
+        after_v = after if after is not None else 0.0
+        delta = round(after_v - before_v, 4)
+        out[key] = {
+            "before": before_v,
+            "after": after_v,
+            "delta": delta,
+            "direction": "improved" if delta > 0 else ("regressed" if delta < 0 else "unchanged"),
+        }
+    return out
+
+
+def session_summary(
+    records: list[dict[str, Any]],
+    *,
+    label: str | None = None,
+    source: str | None = None,
+) -> dict[str, Any]:
+    """Aggregate one benchmark run plus identifying metadata."""
+    agg = aggregate_run(records)
+    meta: dict[str, Any] = {
+        "label": label,
+        "source": source,
+        "run_id": None,
+        "model": None,
+        "classifier_model": None,
+        "classify_pass": None,
+        "name_seed": None,
+        "naming": None,
+    }
+    for rec in records:
+        if rec.get("phase") == "setup":
+            continue
+        for key in ("run_id", "model", "classifier_model", "classify_pass", "name_seed", "naming"):
+            if meta.get(key) is None and rec.get(key) is not None:
+                meta[key] = rec[key]
+        if meta["label"] is None and rec.get("label"):
+            meta["label"] = rec["label"]
+    if meta["label"] is None and source:
+        meta["label"] = Path(source).stem
+    return {**meta, **agg}
+
+
 def compare_runs(
     baseline: list[dict[str, Any]],
     candidate: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Compare two benchmark result sets keyed by plot_id + scene_type."""
-    def _key(r: dict[str, Any]) -> tuple[str, str]:
-        return (r["plot_id"], r["scene_type"])
-
-    base_map = {_key(r): r for r in baseline}
-    cand_map = {_key(r): r for r in candidate}
+    base_map = {_case_key(r): r for r in baseline}
+    cand_map = {_case_key(r): r for r in candidate}
     keys = sorted(set(base_map) & set(cand_map))
 
     rows: list[dict[str, Any]] = []
+    field_improved: dict[str, int] = {k: 0 for k in COMPARE_FIELDS}
+    field_regressed: dict[str, int] = {k: 0 for k in COMPARE_FIELDS}
+    field_unchanged: dict[str, int] = {k: 0 for k in COMPARE_FIELDS}
+
     for key in keys:
         b = base_map[key]
         c = cand_map[key]
-        b_score = b.get("delta", {}).get("match_score", 0.0)
-        c_score = c.get("delta", {}).get("match_score", 0.0)
+        b_delta = b.get("delta") or {}
+        c_delta = c.get("delta") or {}
+        b_score = b_delta.get("match_score", 0.0)
+        c_score = c_delta.get("match_score", 0.0)
+        field_changes: dict[str, dict[str, Any]] = {}
+        for dim, b_info in b_delta.get("fields", {}).items():
+            c_info = c_delta.get("fields", {}).get(dim) or {}
+            b_match = bool(b_info.get("match"))
+            c_match = bool(c_info.get("match"))
+            if c_match and not b_match:
+                field_improved[dim] = field_improved.get(dim, 0) + 1
+                change = "improved"
+            elif b_match and not c_match:
+                field_regressed[dim] = field_regressed.get(dim, 0) + 1
+                change = "regressed"
+            else:
+                field_unchanged[dim] = field_unchanged.get(dim, 0) + 1
+                change = "unchanged"
+            field_changes[dim] = {
+                "baseline_match": b_match,
+                "candidate_match": c_match,
+                "change": change,
+            }
         rows.append(
             {
                 "plot_id": key[0],
@@ -546,12 +626,16 @@ def compare_runs(
                 "delta": round(c_score - b_score, 4),
                 "baseline_model": b.get("model"),
                 "candidate_model": c.get("model"),
+                "field_changes": field_changes,
             }
         )
 
     improved = sum(1 for r in rows if r["delta"] > 0)
     regressed = sum(1 for r in rows if r["delta"] < 0)
     mean_delta = round(sum(r["delta"] for r in rows) / len(rows), 4) if rows else 0.0
+
+    base_summary = aggregate_run(baseline)
+    cand_summary = aggregate_run(candidate)
 
     return {
         "paired_count": len(rows),
@@ -560,9 +644,190 @@ def compare_runs(
         "regressed": regressed,
         "unchanged": len(rows) - improved - regressed,
         "rows": rows,
-        "baseline_summary": aggregate_run(baseline),
-        "candidate_summary": aggregate_run(candidate),
+        "baseline_summary": base_summary,
+        "candidate_summary": cand_summary,
+        "field_hit_rate_delta": _field_hit_rate_delta(
+            base_summary.get("field_hit_rate", {}),
+            cand_summary.get("field_hit_rate", {}),
+        ),
+        "field_case_counts": {
+            "improved": {k: v for k, v in sorted(field_improved.items()) if v},
+            "regressed": {k: v for k, v in sorted(field_regressed.items()) if v},
+            "unchanged": {k: v for k, v in sorted(field_unchanged.items()) if v},
+        },
     }
+
+
+def compare_training_sessions(
+    sessions: list[tuple[str, list[dict[str, Any]]]],
+    *,
+    sources: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Compare an ordered list of benchmark runs (baseline → training sessions).
+
+    Each session is (label, records). Returns conformity trends, step deltas,
+    per-field hit-rate trajectories, and each session vs the baseline.
+    """
+    if len(sessions) < 2:
+        raise ValueError("compare_training_sessions requires at least two sessions")
+
+    srcs = sources or [None] * len(sessions)
+    summaries = [
+        session_summary(records, label=label, source=src)
+        for (label, records), src in zip(sessions, srcs)
+    ]
+
+    mean_scores = [s.get("mean_match_score", 0.0) for s in summaries]
+    first_score = mean_scores[0]
+    last_score = mean_scores[-1]
+    overall_delta = round(last_score - first_score, 4)
+
+    steps: list[dict[str, Any]] = []
+    for i in range(len(sessions) - 1):
+        from_label, from_records = sessions[i]
+        to_label, to_records = sessions[i + 1]
+        step = compare_runs(from_records, to_records)
+        steps.append(
+            {
+                "from_label": from_label,
+                "to_label": to_label,
+                "mean_score_before": mean_scores[i],
+                "mean_score_after": mean_scores[i + 1],
+                "mean_score_delta": step["mean_score_delta"],
+                "improved_cases": step["improved"],
+                "regressed_cases": step["regressed"],
+                "unchanged_cases": step["unchanged"],
+                "field_hit_rate_delta": step["field_hit_rate_delta"],
+            }
+        )
+
+    vs_baseline: list[dict[str, Any]] = []
+    baseline_records = sessions[0][1]
+    for i in range(1, len(sessions)):
+        label, records = sessions[i]
+        cmp = compare_runs(baseline_records, records)
+        vs_baseline.append(
+            {
+                "label": label,
+                "mean_match_score": summaries[i].get("mean_match_score", 0.0),
+                "vs_baseline_delta": cmp["mean_score_delta"],
+                "improved_cases": cmp["improved"],
+                "regressed_cases": cmp["regressed"],
+                "field_hit_rate_delta": cmp["field_hit_rate_delta"],
+            }
+        )
+
+    field_trends: dict[str, dict[str, Any]] = {}
+    for key in COMPARE_FIELDS:
+        rates = [s.get("field_hit_rate", {}).get(key, 0.0) for s in summaries]
+        if not any(rates):
+            continue
+        deltas = [round(rates[j + 1] - rates[j], 4) for j in range(len(rates) - 1)]
+        total_delta = round(rates[-1] - rates[0], 4)
+        field_trends[key] = {
+            "hit_rates": rates,
+            "step_deltas": deltas,
+            "first_to_last_delta": total_delta,
+            "direction": (
+                "improved" if total_delta > 0 else ("regressed" if total_delta < 0 else "unchanged")
+            ),
+        }
+
+    plot_trends: dict[str, dict[str, Any]] = {}
+    plot_ids = sorted({pid for s in summaries for pid in s.get("by_plot", {})})
+    for pid in plot_ids:
+        scores = [s.get("by_plot", {}).get(pid, 0.0) for s in summaries]
+        plot_trends[pid] = {
+            "mean_match_scores": scores,
+            "first_to_last_delta": round(scores[-1] - scores[0], 4),
+        }
+
+    scene_trends: dict[str, dict[str, Any]] = {}
+    scene_ids = sorted({sid for s in summaries for sid in s.get("by_scene", {})})
+    for sid in scene_ids:
+        scores = [s.get("by_scene", {}).get(sid, 0.0) for s in summaries]
+        scene_trends[sid] = {
+            "mean_match_scores": scores,
+            "first_to_last_delta": round(scores[-1] - scores[0], 4),
+        }
+
+    naming_trend: dict[str, Any] | None = None
+    mean_attempts = [
+        (s.get("naming") or {}).get("mean_attempts")
+        for s in summaries
+        if (s.get("naming") or {}).get("mean_attempts") is not None
+    ]
+    if len(mean_attempts) >= 2:
+        naming_trend = {
+            "mean_attempts": mean_attempts,
+            "first_to_last_delta": round(mean_attempts[-1] - mean_attempts[0], 4),
+        }
+
+    improved_fields = sorted(k for k, v in field_trends.items() if v["first_to_last_delta"] > 0)
+    regressed_fields = sorted(k for k, v in field_trends.items() if v["first_to_last_delta"] < 0)
+
+    return {
+        "session_count": len(sessions),
+        "sessions": summaries,
+        "conformity_trend": {
+            "mean_match_scores": mean_scores,
+            "first_to_last_delta": overall_delta,
+            "direction": (
+                "improved" if overall_delta > 0 else ("regressed" if overall_delta < 0 else "unchanged")
+            ),
+            "steps": steps,
+        },
+        "vs_baseline": vs_baseline,
+        "field_trends": field_trends,
+        "fields_improved": improved_fields,
+        "fields_regressed": regressed_fields,
+        "plot_trends": plot_trends,
+        "scene_trends": scene_trends,
+        "naming_trend": naming_trend,
+    }
+
+
+def format_sessions_report(report: dict[str, Any]) -> str:
+    """Human-readable summary for terminal output."""
+    lines: list[str] = []
+    trend = report["conformity_trend"]
+    lines.append(f"Training sessions: {report['session_count']}")
+    lines.append("")
+    lines.append("Mean conformity (match_score):")
+    for sess in report["sessions"]:
+        label = sess.get("label") or sess.get("source") or "?"
+        score = sess.get("mean_match_score", 0.0)
+        model = sess.get("model") or "?"
+        lines.append(f"  {label:30s}  {score:.4f}  ({model})")
+    lines.append("")
+    lines.append(
+        f"Overall {trend['direction']}: {trend['first_to_last_delta']:+.4f} "
+        f"({trend['mean_match_scores'][0]:.4f} → {trend['mean_match_scores'][-1]:.4f})"
+    )
+    if trend["steps"]:
+        lines.append("")
+        lines.append("Step deltas:")
+        for step in trend["steps"]:
+            lines.append(
+                f"  {step['from_label']} → {step['to_label']}: "
+                f"{step['mean_score_delta']:+.4f} "
+                f"({step['improved_cases']}↑ {step['regressed_cases']}↓ cases)"
+            )
+    if report.get("fields_improved") or report.get("fields_regressed"):
+        lines.append("")
+        if report["fields_improved"]:
+            lines.append(f"Fields improved vs baseline: {', '.join(report['fields_improved'])}")
+        if report["fields_regressed"]:
+            lines.append(f"Fields regressed vs baseline: {', '.join(report['fields_regressed'])}")
+    if report.get("naming_trend"):
+        nt = report["naming_trend"]
+        lines.append("")
+        lines.append(
+            f"Naming mean_attempts: {nt['mean_attempts'][0]:.2f} → "
+            f"{nt['mean_attempts'][-1]:.2f} ({nt['first_to_last_delta']:+.2f})"
+        )
+    return "\n".join(lines)
 
 
 def load_results_jsonl(path: Path) -> list[dict[str, Any]]:

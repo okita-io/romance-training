@@ -148,12 +148,20 @@ python tools/style_evaluation/run_benchmark.py compare \
   eval/style_benchmark/results/baseline_llama10b.jsonl \
   eval/style_benchmark/results/batch001_finetuned.jsonl \
   --output eval/style_benchmark/results/batch001_comparison.json
+
+# Conformity trend across training sessions (ordered: baseline first)
+python tools/style_evaluation/run_benchmark.py compare-sessions \
+  baseline:eval/style_benchmark/results/baseline_llama10b.jsonl \
+  batch_001:eval/style_benchmark/results/batch001_finetuned.jsonl \
+  batch_002:eval/style_benchmark/results/batch002_finetuned.jsonl \
+  --output eval/style_benchmark/results/training_trend.json
 ```
 
 ## Interpreting deltas
 
 - **`match_score`** — fraction of target LLM dimensions exactly matched by the classifier (0–1).
 - Compare **`mean_match_score`** across runs; positive **`delta`** in `compare` means the candidate run classified closer to target.
+- Use **`compare-sessions`** with ordered result files to track conformity across training iterations: step deltas, per-field hit-rate trends, plot/scene breakdowns, and naming `mean_attempts` when present.
 - Use **`field_hit_rate`** in the summary to see which rubric dimensions transfer (e.g. `register`, `pov`) vs which stay noisy (`mind_style`, `free_indirect_discourse`).
 
 The classifier is part of the measurement loop — for fair before/after comparisons, use the **same classifier model and `--classify-pass`** across runs.

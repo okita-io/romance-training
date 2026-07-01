@@ -25,6 +25,13 @@ Usage:
         eval/style_benchmark/results/baseline.jsonl \\
         eval/style_benchmark/results/batch001_finetuned.jsonl
 
+    # Conformity trend across training sessions (ordered baseline first)
+    python tools/style_evaluation/run_benchmark.py compare-sessions \\
+        baseline:eval/style_benchmark/results/baseline.jsonl \\
+        batch_001:eval/style_benchmark/results/batch001_finetuned.jsonl \\
+        batch_002:eval/style_benchmark/results/batch002_finetuned.jsonl \\
+        --output eval/style_benchmark/results/training_trend.json
+
     # Summarize one run
     python tools/style_evaluation/run_benchmark.py summarize \\
         eval/style_benchmark/results/baseline.jsonl
@@ -50,7 +57,9 @@ from tools.style_evaluation.benchmark import (  # noqa: E402
     build_scene_prompt,
     build_setup_prompt,
     compare_runs,
+    compare_training_sessions,
     compute_delta,
+    format_sessions_report,
     iter_benchmark_cases,
     load_fixture,
     load_results_jsonl,
@@ -241,6 +250,35 @@ def cmd_compare(args: argparse.Namespace) -> None:
         print(text)
 
 
+def _parse_session_arg(raw: str) -> tuple[str, Path]:
+    """Parse 'label:path.jsonl' or bare 'path.jsonl' (label = stem)."""
+    if ":" in raw:
+        label, path_str = raw.split(":", 1)
+        return label.strip(), Path(path_str.strip())
+    path = Path(raw)
+    return path.stem, path
+
+
+def cmd_compare_sessions(args: argparse.Namespace) -> None:
+    sessions: list[tuple[str, list[dict[str, Any]]]] = []
+    sources: list[str] = []
+    for raw in args.sessions:
+        label, path = _parse_session_arg(raw)
+        if not path.exists():
+            print(f"Not found: {path}", file=sys.stderr)
+            sys.exit(1)
+        records = [r for r in load_results_jsonl(path) if r.get("phase") != "setup"]
+        sessions.append((label, records))
+        sources.append(str(path))
+
+    report = compare_training_sessions(sessions, sources=sources)
+    out = Path(args.output) if args.output else None
+    if out:
+        out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(f"Wrote {out}")
+    print(format_sessions_report(report))
+
+
 def cmd_summarize(args: argparse.Namespace) -> None:
     records = load_results_jsonl(Path(args.path))
     print(json.dumps(aggregate_run(records), indent=2))
@@ -310,6 +348,23 @@ def _build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("candidate", type=Path)
     cmp.add_argument("--output", type=Path, default=None)
 
+    sess = sub.add_parser(
+        "compare-sessions",
+        help="Compare conformity across ordered training sessions (baseline first)",
+    )
+    sess.add_argument(
+        "sessions",
+        nargs="+",
+        metavar="SESSION",
+        help="label:path.jsonl or path.jsonl (chronological order; label defaults to filename stem)",
+    )
+    sess.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Write full JSON report (field trends, plot/scene breakdowns)",
+    )
+
     summ = sub.add_parser("summarize", help="Aggregate stats for one result file")
     summ.add_argument("path", type=Path)
 
@@ -353,6 +408,8 @@ def main() -> None:
         cmd_reclassify(args)
     elif command == "compare":
         cmd_compare(args)
+    elif command == "compare-sessions":
+        cmd_compare_sessions(args)
     elif command == "summarize":
         cmd_summarize(args)
     else:
