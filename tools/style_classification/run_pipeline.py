@@ -5,7 +5,9 @@ Phase 2: Run the style classification pipeline over a JSONL corpus.
 Reads JSONL (text + metadata), adds style_profile to metadata, writes enriched JSONL.
 Supports resuming interrupted runs — already-processed records are skipped.
 Each classified chunk is appended and flushed immediately (safe to interrupt).
-Deep pass compacts duplicate lines once at successful completion.
+On Ctrl+C, pending worker tasks are cancelled, the output is compacted from the
+in-memory index (one line per chunk), then the process exits. Deep/both also
+compact on normal completion.
 
 Usage:
     # Classify existing Gutenberg romance corpus (fast, no LLM)
@@ -357,6 +359,7 @@ def run(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     progress = _ProgressTracker(total=len(work_items))
     compact_at_end = pass_mode in ("deep", "both")
+    interrupted = False
 
     def _log_classified(result: dict) -> None:
         interval, throughput, eta_sec = progress.mark_done()
@@ -405,16 +408,49 @@ def run(
                     _log_classified(result)
 
         if workers > 1:
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = {
-                    pool.submit(_process_item, i, key, record): i
-                    for i, (key, record) in enumerate(work_items)
-                }
+            pool = ThreadPoolExecutor(max_workers=workers)
+            futures = {
+                pool.submit(_process_item, i, key, record): i
+                for i, (key, record) in enumerate(work_items)
+            }
+            try:
                 for future in as_completed(futures):
                     future.result()
+            except KeyboardInterrupt:
+                interrupted = True
+                print(
+                    "\nInterrupted — cancelling pending tasks "
+                    "(in-flight LLM calls may finish briefly) …",
+                    flush=True,
+                )
+                pool.shutdown(wait=False, cancel_futures=True)
+            else:
+                pool.shutdown(wait=True)
         else:
-            for i, (key, record) in enumerate(work_items):
-                _process_item(i, key, record)
+            try:
+                for i, (key, record) in enumerate(work_items):
+                    _process_item(i, key, record)
+            except KeyboardInterrupt:
+                interrupted = True
+                print("\nInterrupted.", flush=True)
+
+    if interrupted:
+        if output_index:
+            _rewrite_output(output_path, output_index, output_order)
+            print(f"Compacted {output_path} ({len(output_order)} unique records)")
+        print(
+            f"\nStopped after {progress.processed}/{progress.total} records this session."
+        )
+        print("Resume: rerun the same command (skips chunks already complete).")
+        if not output_index:
+            print("No new records were written.")
+        else:
+            print(
+                "If duplicate lines remain from earlier append-only runs:\n"
+                f"  python tools/data_preparation/dedup_corpus_jsonl.py "
+                f"--input {output_path} --in-place"
+            )
+        raise SystemExit(130)
 
     if compact_at_end:
         _rewrite_output(output_path, output_index, output_order)

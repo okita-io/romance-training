@@ -41,9 +41,9 @@ Resume semantics stay the same as `run_pipeline.py`: skip records that already h
 
 ### Durability
 
-Every pass **appends one line and flushes after each chunk** — safe to interrupt at any time. Resume reloads the output file using last-wins per record key (so duplicate lines from an interrupted deep pass are harmless).
+Every pass **appends one line and flushes after each chunk** — safe to interrupt at any time. On **Ctrl+C**, the pipeline cancels pending worker tasks, **compacts** the output file from its in-memory index (one line per chunk), and exits. Resume reloads the output file using last-wins per record key. If older append-only runs left extra duplicate lines, run `dedup_corpus_jsonl.py --in-place`.
 
-When `--pass deep` **finishes successfully**, the pipeline rewrites the file once to remove duplicate keys and restore a single line per chunk. If deep is interrupted before that compact step, rerun `--pass deep`; resume still works, and the next successful completion compacts the file.
+When `--pass deep` or `--pass both` **finishes successfully**, the pipeline also rewrites the file once to remove duplicate keys.
 
 ## Field split (aligned to `style_rubric.json`)
 
