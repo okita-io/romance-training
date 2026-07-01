@@ -32,3 +32,6 @@ data/corpus/
 source-data/hf/
 source-data/unified/*.jsonl
 source-data/processed/
+
+# Style benchmark run outputs
+eval/style_benchmark/results/
