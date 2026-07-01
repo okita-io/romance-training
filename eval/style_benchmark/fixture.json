@@ -1,46 +1,37 @@
 {
-  "version": "1.0",
-  "description": "Fixed fantasy-romance world, character roster, plots, and Leech-Short style targets for cross-run comparison.",
+  "version": "1.1",
+  "description": "Fixed fantasy-romance world, plot seeds, and Leech-Short style targets for cross-run comparison. Character names are assigned per run (see materialize_fixture_for_run).",
   "world": {
     "name": "Ashenmere",
     "era": "Late imperial age, after the Sundering of the Tide Thrones",
     "setting": "A fractured archipelago where salt-magic binds oaths, storm-lords rule from floating citadels, and the Ash Court polices forbidden prophecy. Romance is entangled with political debt, bloodline taboos, and relics that remember their owners.",
-    "tone_notes": "Shared continuity across all plots; names and factions stay consistent."
+    "tone_notes": "Shared continuity across all plots; names and factions stay consistent within a run."
   },
-  "female_leads": [
-    "Aeliana Thornweave",
-    "Mira Solacewright",
-    "Vespera Kael",
-    "Bronte Ashford",
-    "Elowen Duskmire",
-    "Sable Wynter",
-    "Isolde Ravencrest"
-  ],
-  "male_leads": [
-    "Cassian Vale",
-    "Thorne Blackwell",
-    "Aldric Fenn",
-    "Ronan Greywing",
-    "Darius Holt",
-    "Evander Storm",
-    "Lucien Merrow"
-  ],
   "scene_types": [
     {
       "id": "opening",
       "label": "Opening",
+      "chapter": 1,
+      "act": 10,
+      "romance_focus_level": 1,
       "word_range": [150, 250],
       "instruction": "Write the opening paragraph(s) of this story. Establish place, the central relationship tension, and a hook. Do not summarize the whole plot."
     },
     {
       "id": "climax_reveal",
       "label": "Climactic plot reveal",
+      "chapter": 5,
+      "act": 40,
+      "romance_focus_level": 2,
       "word_range": [200, 350],
       "instruction": "Write a climactic scene between the two leads where a major plot secret is revealed (betrayal, hidden identity, broken oath, or forbidden magic). The reveal should reframe everything the reader assumed."
     },
     {
       "id": "romantic_encounter",
       "label": "Romantic encounter",
+      "chapter": 7,
+      "act": 30,
+      "romance_focus_level": 2,
       "word_range": [200, 350],
       "instruction": "Write an intimate romantic encounter between the two leads. Focus on emotional and sensory prose; fade-to-black is acceptable but the scene must feel earned by the relationship."
     }
@@ -49,9 +40,7 @@
     {
       "id": "plot_01",
       "title": "The Salt-Crown Betrothal",
-      "summary": "Aeliana, envoy of the Thornweave merchant-lords, is sent to negotiate a marriage treaty with Cassian Vale, heir to a storm citadel. She discovers the betrothal contract was signed in her blood before she was born.",
-      "female_lead": "Aeliana Thornweave",
-      "male_lead": "Cassian Vale",
+      "summary_template": "{{female_lead}}, envoy of the Thornweave merchant-lords, is sent to negotiate a marriage treaty with {{male_lead}}, heir to a storm citadel. She discovers the betrothal contract was signed in her blood before she was born.",
       "style_label": "Courtly formal omniscient",
       "style_target": {
         "lexical_complexity": "complex_literary",
@@ -75,9 +64,7 @@
     {
       "id": "plot_02",
       "title": "Lanterns at Low Tide",
-      "summary": "Mira, a reef-healer exiled for mercy-killing a tide-priest, rescues Thorne Blackwell from a wreck. He remembers nothing except her face — and a prophecy that names her as his executioner.",
-      "female_lead": "Mira Solacewright",
-      "male_lead": "Thorne Blackwell",
+      "summary_template": "{{female_lead}}, a reef-healer exiled for mercy-killing a tide-priest, rescues {{male_lead}} from a wreck. He remembers nothing except her face — and a prophecy that names her as his executioner.",
       "style_label": "Intimate first-person with FID",
       "style_target": {
         "lexical_complexity": "neutral",
@@ -101,9 +88,7 @@
     {
       "id": "plot_03",
       "title": "The Smuggler's Index",
-      "summary": "Vespera Kael runs contraband relic ledgers through Ashenmere's fog markets. Aldric Fenn, an Ash Court inquisitor, goes undercover as her accountant — and finds his own signature on every forged page.",
-      "female_lead": "Vespera Kael",
-      "male_lead": "Aldric Fenn",
+      "summary_template": "{{female_lead}} runs contraband relic ledgers through Ashenmere's fog markets. {{male_lead}}, an Ash Court inquisitor, goes undercover as her accountant — and finds his own signature on every forged page.",
       "style_label": "Colloquial paratactic thriller",
       "style_target": {
         "lexical_complexity": "simple_colloquial",
@@ -127,9 +112,7 @@
     {
       "id": "plot_04",
       "title": "Starfall Canticle",
-      "summary": "Bronte Ashford composes forbidden star-charts that predict the deaths of storm-lords. Ronan Greywing, a blind sky-cartographer, hires her to finish a map — unaware it charts the night his sister drowned.",
-      "female_lead": "Bronte Ashford",
-      "male_lead": "Ronan Greywing",
+      "summary_template": "{{female_lead}} composes forbidden star-charts that predict the deaths of storm-lords. {{male_lead}}, a blind sky-cartographer, hires her to finish a map — unaware it charts the night his sister drowned.",
       "style_label": "Lyrical figurative third-limited",
       "style_target": {
         "lexical_complexity": "complex_literary",
@@ -153,9 +136,7 @@
     {
       "id": "plot_05",
       "title": "The Oathbreaker's Ball",
-      "summary": "Elowen Duskmire attends the Ash Court masque to steal back her family's drowned seal. Darius Holt, the court's public hangman, recognizes her as the woman who once saved his life — and who he was ordered to kill.",
-      "female_lead": "Elowen Duskmire",
-      "male_lead": "Darius Holt",
+      "summary_template": "{{female_lead}} attends the Ash Court masque to steal back her family's drowned seal. {{male_lead}}, the court's public hangman, recognizes her as the woman who once saved his life — and who he was ordered to kill.",
       "style_label": "Sardonic distant social satire",
       "style_target": {
         "lexical_complexity": "neutral",
@@ -179,9 +160,7 @@
     {
       "id": "plot_06",
       "title": "Relics of the First Storm",
-      "summary": "Sable Wynter commands a relic-hunter crew hunting the First Storm's anchor stone. Evander Storm — no relation, he insists — is the only diver who can touch it without drowning in memory.",
-      "female_lead": "Sable Wynter",
-      "male_lead": "Evander Storm",
+      "summary_template": "{{female_lead}} commands a relic-hunter crew hunting the First Storm's anchor stone. {{male_lead}} — no relation, he insists — is the only diver who can touch it without drowning in memory.",
       "style_label": "Archaic epic hypotactic",
       "style_target": {
         "lexical_complexity": "complex_literary",
@@ -205,9 +184,7 @@
     {
       "id": "plot_07",
       "title": "Seven Letters, One Harbor",
-      "summary": "Isolde Ravencrest inherits seven unsent love letters addressed to different names — all Lucien Merrow's handwriting. Each letter describes a version of her life she never lived.",
-      "female_lead": "Isolde Ravencrest",
-      "male_lead": "Lucien Merrow",
+      "summary_template": "{{female_lead}} inherits seven unsent love letters addressed to different names — all {{male_lead}}'s handwriting. Each letter describes a version of her life she never lived.",
       "style_label": "Mixed POV comedic romantic",
       "style_target": {
         "lexical_complexity": "neutral",

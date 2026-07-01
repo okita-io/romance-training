@@ -55,6 +55,7 @@ from tools.style_evaluation.benchmark import (  # noqa: E402
     load_fixture,
     load_results_jsonl,
     make_run_id,
+    materialize_fixture_for_run,
 )
 
 
@@ -85,16 +86,31 @@ def _classify_text(text: str, *, model: str, pass_mode: str) -> dict[str, Any]:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    fixture = load_fixture(Path(args.fixture))
+    base_fixture = load_fixture(Path(args.fixture))
     run_id = make_run_id(args.label)
+    name_seed = args.name_seed or run_id
+    fixture = materialize_fixture_for_run(
+        base_fixture,
+        name_seed,
+        name_mode=args.name_mode,
+        name_model=args.name_model or args.model,
+        max_name_retries=args.max_name_retries,
+        dry_run=args.dry_run,
+    )
     out_path = Path(args.output)
     plot_map = {p["id"]: p for p in fixture["plots"]}
+    naming_meta = fixture.get("naming") or {}
 
     if args.setup_only:
         system, user = build_setup_prompt(fixture)
         record: dict[str, Any] = {
             "run_id": run_id,
             "label": args.label,
+            "name_seed": name_seed,
+            "name_mode": args.name_mode,
+            "naming": naming_meta,
+            "female_leads": fixture.get("female_leads"),
+            "male_leads": fixture.get("male_leads"),
             "phase": "setup",
             "model": args.model,
             "classifier_model": args.classifier_model or args.model,
@@ -132,6 +148,9 @@ def cmd_run(args: argparse.Namespace) -> None:
         record = {
             "run_id": run_id,
             "label": args.label,
+            "name_seed": name_seed,
+            "name_mode": args.name_mode,
+            "naming": naming_meta,
             "phase": "scene",
             "plot_id": case["plot_id"],
             "plot_title": case["plot_title"],
@@ -170,9 +189,16 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     if not args.dry_run:
         summary = aggregate_run(load_results_jsonl(out_path))
+        summary["naming"] = naming_meta
         summary_path = out_path.with_suffix(".summary.json")
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print(f"Done. Summary → {summary_path}")
+        if naming_meta.get("mode") == "llm":
+            print(
+                f"Naming: {naming_meta.get('total_attempts')} total attempts, "
+                f"mean {naming_meta.get('mean_attempts')} per character "
+                f"(max {naming_meta.get('max_attempts_used')})"
+            )
 
 
 def cmd_reclassify(args: argparse.Namespace) -> None:
@@ -232,6 +258,28 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(ROOT / "eval" / "style_benchmark" / "results" / "latest.jsonl"),
     )
     run.add_argument("--label", default="benchmark", help="Tag for this run (baseline, batch_001, …)")
+    run.add_argument(
+        "--name-seed",
+        default=None,
+        help="Seed for per-run character names (default: run_id timestamp label)",
+    )
+    run.add_argument(
+        "--name-mode",
+        default="llm",
+        choices=["llm", "syllable"],
+        help="How to assign lead names (default: llm = RF-style character namer)",
+    )
+    run.add_argument(
+        "--name-model",
+        default=None,
+        help="LLM for naming (default: same as --model)",
+    )
+    run.add_argument(
+        "--max-name-retries",
+        type=int,
+        default=100,
+        help="Max LLM attempts per lead before failing the run (default: 100)",
+    )
     run.add_argument("--model", default=DEFAULT_MODEL, help="Generation model")
     run.add_argument(
         "--classifier-model",
@@ -272,6 +320,10 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(ROOT / "eval" / "style_benchmark" / "results" / "latest.jsonl"),
     )
     parser.add_argument("--label", default="benchmark")
+    parser.add_argument("--name-seed", default=None)
+    parser.add_argument("--name-mode", default="llm", choices=["llm", "syllable"])
+    parser.add_argument("--name-model", default=None)
+    parser.add_argument("--max-name-retries", type=int, default=100)
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--classifier-model", default=None)
     parser.add_argument("--classify-pass", default="both", choices=["full", "fast", "deep", "both"])

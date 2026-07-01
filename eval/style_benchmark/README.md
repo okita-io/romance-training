@@ -2,17 +2,51 @@
 
 A **fixed, documented prompt suite** for comparing prose style fidelity across training runs, base models, and fine-tuned adapters.
 
-Every generation uses the same fantasy world, character roster, seven plots, and Leech & Short style targets so you can measure **deltas** between runs instead of one-off prompts.
+Every generation uses the same fantasy world, seven plots, and Leech & Short style targets so you can measure **deltas** between runs instead of one-off prompts. **Character names are assigned fresh per run** (seeded) so models cannot memorize fixed lead names across baseline vs fine-tune comparisons.
+
+**Prompt shape** mirrors romance-factory Phase 7 act prose (`PromptBuilder.build_act_generation_prompt`): prose-engine system voice, rough-draft length budget, verbosity / narrative-purpose contracts, and a `format_style_targets`-style block — not the older flat Leech-writer system prompt.
 
 ## Fixture (`fixture.json`)
 
 | Section | Contents |
 |---------|----------|
 | **World** | Ashenmere — fractured archipelago, salt-magic, Ash Court |
-| **Female leads** | 7 names (Aeliana Thornweave … Isolde Ravencrest) |
-| **Male leads** | 7 names (Cassian Vale … Lucien Merrow) |
-| **Plots** | 7 romance/fantasy setups, each with a distinct **style_target** |
-| **Scene types** | `opening`, `climax_reveal`, `romantic_encounter` |
+| **Plots** | 7 romance/fantasy setups with `summary_template` + distinct **style_target** |
+| **Scene types** | `opening`, `climax_reveal`, `romantic_encounter` (each maps to chapter/act + romance-focus level) |
+| **Names** | Assigned at run time — default **LLM namer** (RF `character_namer` + overused-name gate, up to 100 retries/lead). Use `--name-mode syllable` for offline. |
+
+### Naming telemetry (training metric)
+
+Each run records a `naming` block on every jsonl line and in the `.summary.json`:
+
+```json
+{
+  "naming": {
+    "mode": "llm",
+    "model": "llama3.2-moe-ultra-instruct-10b",
+    "max_retries": 100,
+    "total_characters": 14,
+    "total_attempts": 23,
+    "mean_attempts": 1.64,
+    "max_attempts_used": 4,
+    "characters": [
+      {
+        "plot_id": "plot_01",
+        "role": "female_lead",
+        "name": "Phaedra Saltwick",
+        "attempts": 2,
+        "rejections": [
+          {"attempt": 1, "name": "Elara Vance", "reason": "overused first name: elara", "code": "overused_first"}
+        ]
+      }
+    ]
+  }
+}
+```
+
+Track **`mean_attempts`** and **`total_attempts`** across training sessions — the goal is for fine-tuned models to escape Elara / Isolde / etc. in fewer tries.
+
+Overused lists: romance-factory `prompt_engineering/overused_llm_names.json` when the submodule is nested, merged with `eval/style_benchmark/overused_llm_names.json` (adds Isolde, Aeliana, …). Override: `STYLE_BENCHMARK_OVERUSED_NAMES_PATH`.
 
 ### Style mixes (one per plot)
 
@@ -74,8 +108,18 @@ Use **`label`** to tag training iterations: `baseline`, `batch_001_pretrained`, 
 ## Commands
 
 ```bash
-# Inspect prompts without LLM calls
+# Inspect prompts without LLM calls (names seeded from run_id)
 python tools/style_evaluation/run_benchmark.py --dry-run --limit 3
+
+# Reproducible names across two runs (same seed → same roster; syllable mode during dry-run)
+python tools/style_evaluation/run_benchmark.py --dry-run --name-seed my-baseline-v1 --limit 1
+
+# Live run with LLM naming (default) — watch naming attempts in summary
+python tools/style_evaluation/run_benchmark.py \\
+  --label baseline_llama10b \\
+  --name-seed baseline-v1 \\
+  --max-name-retries 100 \\
+  --output eval/style_benchmark/results/baseline_llama10b.jsonl
 
 # Full run (generation + classification)
 LLM_MODEL=llama3.2-moe-ultra-instruct-10b
@@ -118,4 +162,5 @@ The classifier is part of the measurement loop — for fair before/after compari
 
 - `source/style_rubric.json` — dimension definitions
 - `tools/style_classification/classify_passage.py` — classification
-- `tools/style_evaluation/benchmark.py` — prompt + delta helpers
+- `tools/style_evaluation/benchmark.py` — prompt + delta helpers (RF-aligned Phase 7 shape)
+- `romance-factory` — `src/romance_factory/generate/prompt_builder.py`, `src/romance_factory/style/targets.py` (reference prompts)
