@@ -33,8 +33,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 PROCESSED_ROOT = ROOT / "source-data" / "processed"
-PIPELINE_CORPUS_DIR = ROOT / "train" / "romance_corpus"
 INVENTORY_PATH = PROCESSED_ROOT / "pipeline_inventory.json"
+
+from tools.data_preparation.paths import IN_REPO_CORPUS, PIPELINE_CHUNKS_DIR  # noqa: E402
 
 # Legacy styled output names (run_pipeline --output)
 STYLED_OUTPUT_ALIASES: dict[str, str] = {
@@ -77,12 +78,12 @@ def load_index(slug_dir: Path) -> dict[str, Any]:
 
 
 def pipeline_output_path(slug: str) -> Path:
-    return PIPELINE_CORPUS_DIR / f"{slug}_pipeline_chunks.jsonl"
+    return PIPELINE_CHUNKS_DIR / f"{slug}_pipeline_chunks.jsonl"
 
 
 def styled_output_path(slug: str) -> Path:
     name = STYLED_OUTPUT_ALIASES.get(slug, f"{slug}_styled.jsonl")
-    return PIPELINE_CORPUS_DIR / name
+    return IN_REPO_CORPUS / name
 
 
 def expand_record(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -263,7 +264,7 @@ def main() -> None:
     parser.add_argument(
         "--write",
         action="store_true",
-        help="Write train/romance_corpus/<slug>_pipeline_chunks.jsonl",
+        help="Write train/staging/pipeline_chunks/<slug>_pipeline_chunks.jsonl",
     )
     parser.add_argument(
         "--write-max-rows",

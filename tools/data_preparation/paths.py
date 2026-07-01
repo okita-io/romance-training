@@ -7,6 +7,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 IN_REPO_CORPUS = REPO_ROOT / "train" / "romance_corpus"
+STAGING_ROOT = REPO_ROOT / "train" / "staging"
+PIPELINE_CHUNKS_DIR = STAGING_ROOT / "pipeline_chunks"
+CORPUS_BACKUPS_DIR = STAGING_ROOT / "backups"
 
 # Override with ROMANCE_CORPUS_ROOT to point at a larger external corpus tree.
 CORPUS_ROOT = Path(os.environ.get("ROMANCE_CORPUS_ROOT", REPO_ROOT / "data" / "corpus"))

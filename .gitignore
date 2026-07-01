@@ -18,6 +18,7 @@ romance-training-deploy.tar.gz
 
 # Large artifacts (corpus JSONL may be local-only)
 train/romance_corpus/*.jsonl
+train/staging/
 train/incremental/ledger.json
 train/incremental/segments/
 train/incremental/batches/

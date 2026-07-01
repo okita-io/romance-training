@@ -77,6 +77,9 @@ def normalize_prose_text(
     from tools.data_preparation.strip_license_agreement import strip_license_agreement
 
     text = strip_license_agreement(text).text
+    from tools.data_preparation.normalize_quotes import normalize_quotes
+
+    text = normalize_quotes(text).text
     return text
 
 

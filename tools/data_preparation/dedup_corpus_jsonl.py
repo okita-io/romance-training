@@ -99,7 +99,10 @@ def main() -> None:
   _rewrite_output(out, by_key, order)
   if args.in_place:
     out.replace(args.input)
-    print(f"Replaced {args.input.relative_to(ROOT)}")
+    try:
+      print(f"Replaced {args.input.relative_to(ROOT)}")
+    except ValueError:
+      print(f"Replaced {args.input}")
   else:
     print(f"Wrote {out.relative_to(ROOT)}")
 
