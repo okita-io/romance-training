@@ -60,7 +60,7 @@ DISABLE_THINKING = os.environ.get("LLM_DISABLE_THINKING", "").strip().lower() in
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_NEMOTRON_VISION = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-LM_STUDIO_REMOTE_DEFAULT = os.environ.get("LM_STUDIO_BASE_URL", "http://127.0.0.1/:1234/v1")
+LM_STUDIO_REMOTE_DEFAULT = os.environ.get("LM_STUDIO_BASE_URL", "http://10.0.1.8/:1234/v1")
 
 
 def pick_vision_model(model_ids: list[str], explicit: str | None = None) -> str:

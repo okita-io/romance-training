@@ -22,6 +22,8 @@ train/incremental/
       styled_combined.jsonl
       train.jsonl
       validation.jsonl
+  logs/
+    <output-stem>.events.jsonl # append-only Phase 2 run/interruption events
 ```
 
 ## Ledger states
@@ -52,6 +54,14 @@ python tools/incremental/manage.py classify-next \
 # Picks lowest pending seg_000, seg_001, …; processes entire segment file, then stops.
 # Re-run the same command for the next segment. Interrupted runs resume the same segment.
 
+# Manual run_pipeline on a segment? Check progress anytime:
+python tools/incremental/manage.py classify-progress \
+  --corpus literotica_stories --segment 0 --pass both
+
+# Optional: reflect manual progress in ledger.json
+python tools/incremental/manage.py classify-progress \
+  --corpus literotica_stories --segment 0 --sync-ledger
+
 # 5. Build a mixed batch: up to 50 MB styled per corpus
 python tools/incremental/manage.py build-batch --max-mb 50
 
@@ -67,6 +77,11 @@ python tools/incremental/manage.py mark-trained --batch batch_001 --run run_001 
 
 Re-run `build-batch` after more segments are classified to start the next
 training iteration. The ledger prevents reusing segments already marked `trained`.
+
+`run_pipeline.py` records run starts, resume counts, periodic progress,
+interruptions, compactions, and completions in `train/incremental/logs/` by
+default. Pass `--run-log <path>` for a custom JSONL log or `--no-run-log` to
+disable event logging.
 
 ## Silver Siren / abliterated Mistral
 

@@ -47,6 +47,23 @@ _PUBLISHER_COPYRIGHT_FOOTER_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+_HTML_ITALIC_BLOCK_RE = re.compile(r"<i\b[^>]*>.*?</i>", re.IGNORECASE | re.DOTALL)
+
+_WEB_FICTION_ADVISORY_RE = re.compile(
+    r"\b(?:"
+    r"this story is (?:a )?work of fiction|"
+    r"characters? (?:are|were) (?:either )?(?:completely )?fictional|"
+    r"fictional versions of their real selves|"
+    r"similarity to real life events is purely coincidental|"
+    r"not to be read by anyone under the age of 18|"
+    r"all characters (?:are|were) (?:18|of legal age)|"
+    r"i am always looking for feedback|"
+    r"please send an email to my profile|"
+    r"i (?:am sorry, )?don'?t do requests"
+    r")\b",
+    re.IGNORECASE,
+)
+
 _FICTION_DISCLAIMER_RE = re.compile(
     r"this (?:novel|book|story) is (?:entirely )?a work of fiction\b",
     re.IGNORECASE,
@@ -89,6 +106,24 @@ def _normalize_ws(text: str) -> str:
 
 def _word_count(text: str) -> int:
     return len(text.split())
+
+
+def _strip_html_fiction_advisory_blocks(text: str) -> tuple[str, bool]:
+    """Remove italicized web-fiction disclaimers while preserving following prose."""
+    stripped = False
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal stripped
+        block = match.group(0)
+        if not _WEB_FICTION_ADVISORY_RE.search(block):
+            return block
+        stripped = True
+        return " "
+
+    cleaned = _HTML_ITALIC_BLOCK_RE.sub(replace, text)
+    if not stripped:
+        return text, False
+    return _normalize_ws(cleaned), True
 
 
 def _strip_fiction_disclaimer_block(text: str) -> tuple[str, bool, str | None]:
@@ -152,6 +187,13 @@ def strip_license_agreement(text: str) -> StripResult:
 
     stripped = False
     reason: str | None = None
+
+    text, html_advisory_stripped = _strip_html_fiction_advisory_blocks(text)
+    if html_advisory_stripped:
+        stripped = True
+        reason = "html_fiction_advisory"
+    if not text:
+        return StripResult("", stripped, reason)
 
     text, disclaimer_stripped, disclaimer_reason = _strip_fiction_disclaimer_block(text)
     if disclaimer_stripped:

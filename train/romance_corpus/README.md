@@ -6,7 +6,7 @@ with a complete LLM pass (`--pass both` or fast + deep merged).
 ## run
 ```powershell
 $env:LLM_MODEL="llama-3.2-4x3b-moe-ultra-instruct-10b"
->> python tools/style_classification/run_pipeline.py  --pass both --workers 4 --input .\train\incremental\segments\literotica_stories\input\seg_000.jsonl --output .\train\romance_corpus\literotica_stories_deep_seg_000.jsonl
+python tools/style_classification/run_pipeline.py  --pass both --workers 4 --input .\train\incremental\segments\literotica_stories\input\seg_000.jsonl --output .\train\romance_corpus\literotica_stories_deep_seg_000.jsonl
 ```
 
 ## Allowed files
@@ -42,3 +42,10 @@ python tools/data_preparation/validate_romance_corpus.py --strict
 ```bash
 python tools/data_preparation/dedup_corpus_jsonl.py --input train/romance_corpus/horror_styled.jsonl --in-place
 ```
+
+## Run event logs
+
+`run_pipeline.py` writes append-only progress/interruption events to
+`train/incremental/logs/<output-stem>.events.jsonl` by default. These logs stay
+outside `train/romance_corpus/` so this directory remains limited to styled
+training JSONL.

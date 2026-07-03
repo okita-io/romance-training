@@ -95,6 +95,37 @@ def test_drop_fiction_disclaimer_only_chunk() -> None:
     assert result.text == ""
 
 
+def test_strip_italic_web_fiction_advisory_before_prose() -> None:
+    raw = (
+        "<i>This story is a work of fiction and the characters are either completely "
+        "fictional or are fictional versions of their real selves. The events depicted "
+        "are made up and any similarity to real life events is purely coincidental. "
+        "This story is meant as a work of erotic fiction only and is not to be read by "
+        "anyone under the age of 18. I am always looking for feedback and conversing "
+        "about my stories. If you would like to, please send an email to my profile. "
+        "I am sorry, I don't do requests.</i> "
+        "Rain ticked against the motel window while Mara folded the letter twice."
+    )
+    result = strip_license_agreement(raw)
+    assert result.stripped
+    assert result.reason == "html_fiction_advisory"
+    assert result.text == "Rain ticked against the motel window while Mara folded the letter twice."
+    assert "<i>" not in result.text
+    assert "under the age of 18" not in result.text
+
+
+def test_strip_italic_web_fiction_advisory_only() -> None:
+    raw = (
+        "<i>This story is a work of fiction. The events depicted are made up and any "
+        "similarity to real life events is purely coincidental. This story is not to "
+        "be read by anyone under the age of 18.</i>"
+    )
+    result = strip_license_agreement(raw)
+    assert result.stripped
+    assert result.reason == "html_fiction_advisory"
+    assert result.text == ""
+
+
 def test_keep_narrative_acknowledgment_in_dialogue() -> None:
     raw = (
         '"A most unnecessary acknowledgment, my dear child--it is patent to the dullest observer. '

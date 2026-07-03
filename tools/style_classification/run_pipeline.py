@@ -42,7 +42,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, datetime
 import json
+import os
 import random
 import sys
 import threading
@@ -51,6 +53,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -61,6 +64,8 @@ DEFAULT_OUTPUT = ROOT / "train" / "romance_corpus" / "gutenberg_styled.jsonl"
 CHUNK_WORDS = 500
 CHUNK_OVERLAP_SENTENCES = 2
 THROUGHPUT_WINDOW = 30
+RUN_LOG_EVERY = 50
+RUN_LOG_DIR = ROOT / "train" / "incremental" / "logs"
 
 
 class _ProgressTracker:
@@ -227,6 +232,48 @@ def _rewrite_output(path: Path, by_key: dict[str, dict], order: list[str]) -> No
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def _default_run_log_path(output_path: Path) -> Path:
+    try:
+        output_path.resolve().relative_to(ROOT)
+    except ValueError:
+        return output_path.with_suffix(output_path.suffix + ".events.jsonl")
+    return RUN_LOG_DIR / f"{output_path.stem}.events.jsonl"
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _append_run_log(log_path: Path | None, event: dict[str, Any]) -> None:
+    if log_path is None:
+        return
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        **event,
+    }
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _merge_output_from_disk(
+    path: Path,
+    by_key: dict[str, dict],
+    order: list[str],
+) -> tuple[int, int]:
+    """Merge latest on-disk output before rewrite; protects against stale compaction."""
+    disk_index, disk_order = _load_output_index(path)
+    before = len(order)
+    for key in disk_order:
+        if key not in by_key:
+            order.append(key)
+        by_key[key] = disk_index[key]
+    return before, len(order)
+
+
 def _enrich(
     record: dict,
     rubric: dict | None,
@@ -277,8 +324,15 @@ def run(
     seed: int = 42,
     quiet: bool = False,
     pass_mode: str = "full",
+    run_log_path: Path | None = None,
+    run_log_enabled: bool = True,
 ) -> None:
     random.seed(seed)
+    run_id = uuid4().hex
+    if not run_log_enabled:
+        run_log_path = None
+    elif run_log_path is None:
+        run_log_path = _default_run_log_path(output_path)
 
     from tools.style_classification.pass_config import suggested_workers
 
@@ -337,8 +391,38 @@ def run(
         work_items.append((key, record))
 
     print(f"Records to classify: {len(work_items)}")
+    _append_run_log(
+        run_log_path,
+        {
+            "event": "run_started",
+            "run_id": run_id,
+            "pid": os.getpid(),
+            "input_path": _display_path(input_path),
+            "output_path": _display_path(output_path),
+            "pass_mode": pass_mode,
+            "workers": workers,
+            "use_llm": use_llm,
+            "llm_model": llm_model,
+            "resume": resume,
+            "source_records": pre_chunk,
+            "pipeline_chunks": len(records),
+            "already_complete": skipped,
+            "records_to_classify": len(work_items),
+            "output_unique_at_start": len(output_order),
+        },
+    )
     if not work_items:
         print("Nothing to do.")
+        _append_run_log(
+            run_log_path,
+            {
+                "event": "nothing_to_do",
+                "run_id": run_id,
+                "already_complete": skipped,
+                "pipeline_chunks": len(records),
+                "output_unique": len(output_order),
+            },
+        )
         return
 
     # Decide which records get LLM analysis
@@ -406,6 +490,18 @@ def run(
                         _flush_progress()
                 else:
                     _log_classified(result)
+                if progress.processed % RUN_LOG_EVERY == 0:
+                    _append_run_log(
+                        run_log_path,
+                        {
+                            "event": "progress",
+                            "run_id": run_id,
+                            "processed_this_run": progress.processed,
+                            "records_to_classify": progress.total,
+                            "remaining_this_run": progress.total - progress.processed,
+                            "output_unique_in_memory": len(output_order),
+                        },
+                    )
 
         if workers > 1:
             pool = ThreadPoolExecutor(max_workers=workers)
@@ -418,6 +514,16 @@ def run(
                     future.result()
             except KeyboardInterrupt:
                 interrupted = True
+                _append_run_log(
+                    run_log_path,
+                    {
+                        "event": "interrupted",
+                        "run_id": run_id,
+                        "processed_this_run": progress.processed,
+                        "records_to_classify": progress.total,
+                        "output_unique_in_memory": len(output_order),
+                    },
+                )
                 print(
                     "\nInterrupted — cancelling pending tasks "
                     "(in-flight LLM calls may finish briefly) …",
@@ -432,12 +538,35 @@ def run(
                     _process_item(i, key, record)
             except KeyboardInterrupt:
                 interrupted = True
+                _append_run_log(
+                    run_log_path,
+                    {
+                        "event": "interrupted",
+                        "run_id": run_id,
+                        "processed_this_run": progress.processed,
+                        "records_to_classify": progress.total,
+                        "output_unique_in_memory": len(output_order),
+                    },
+                )
                 print("\nInterrupted.", flush=True)
 
     if interrupted:
         if output_index:
+            before_merge, after_merge = _merge_output_from_disk(output_path, output_index, output_order)
             _rewrite_output(output_path, output_index, output_order)
             print(f"Compacted {output_path} ({len(output_order)} unique records)")
+            _append_run_log(
+                run_log_path,
+                {
+                    "event": "compacted_after_interrupt",
+                    "run_id": run_id,
+                    "processed_this_run": progress.processed,
+                    "records_to_classify": progress.total,
+                    "output_unique_before_disk_merge": before_merge,
+                    "output_unique_after_disk_merge": after_merge,
+                    "output_unique_after_compact": len(output_order),
+                },
+            )
         print(
             f"\nStopped after {progress.processed}/{progress.total} records this session."
         )
@@ -453,11 +582,33 @@ def run(
         raise SystemExit(130)
 
     if compact_at_end:
+        before_merge, after_merge = _merge_output_from_disk(output_path, output_index, output_order)
         _rewrite_output(output_path, output_index, output_order)
         print(f"Compacted {output_path} ({len(output_order)} records)")
+        _append_run_log(
+            run_log_path,
+            {
+                "event": "compacted_after_completion",
+                "run_id": run_id,
+                "output_unique_before_disk_merge": before_merge,
+                "output_unique_after_disk_merge": after_merge,
+                "output_unique_after_compact": len(output_order),
+            },
+        )
 
     elapsed = time.time() - progress.t0
     print(f"\nDone. {progress.processed} records in {elapsed / 60:.1f} min -> {output_path}")
+    _append_run_log(
+        run_log_path,
+        {
+            "event": "completed",
+            "run_id": run_id,
+            "processed_this_run": progress.processed,
+            "records_to_classify": progress.total,
+            "elapsed_seconds": round(elapsed, 3),
+            "output_unique": len(output_order),
+        },
+    )
     print("Next: python tools/training_formats/generate_instruction_pairs.py")
 
 
@@ -502,6 +653,17 @@ def main() -> None:
         action="store_true",
         help="Log every 50/200 records instead of each classified chunk",
     )
+    parser.add_argument(
+        "--run-log",
+        type=Path,
+        default=None,
+        help="Append structured run events to this JSONL file (default: train/incremental/logs/<output>.events.jsonl)",
+    )
+    parser.add_argument(
+        "--no-run-log",
+        action="store_true",
+        help="Disable structured run event logging",
+    )
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -533,6 +695,8 @@ def main() -> None:
         seed=args.seed,
         quiet=args.quiet,
         pass_mode=args.pass_mode,
+        run_log_path=args.run_log,
+        run_log_enabled=not args.no_run_log,
     )
 
 

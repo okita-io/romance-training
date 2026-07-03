@@ -7,7 +7,7 @@ Usage:
     python tools/corpus_preview/preview_corpus.py --corpus train/romance_corpus/horror_styled.jsonl
     python tools/corpus_preview/preview_corpus.py --port 8765
 
-Opens http://127.0.0.1:8765 in your browser (use --no-open to skip).
+Opens http://10.0.1.8:8765 in your browser (use --no-open to skip).
 """
 
 from __future__ import annotations
@@ -549,7 +549,7 @@ def main() -> None:
         default=None,
         help="Default JSONL file to open (name or path under --corpus-dir)",
     )
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host", default="10.0.1.8")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-open", action="store_true", help="Do not open a browser tab")
     args = parser.parse_args()

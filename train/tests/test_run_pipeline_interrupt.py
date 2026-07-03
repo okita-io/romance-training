@@ -61,6 +61,14 @@ def test_keyboard_interrupt_compacts_partial_output(mock_enrich, tmp_path) -> No
     row = json.loads(lines[0])
     assert row["metadata"]["chunk_index"] == 0
 
+    log_path = output_path.with_suffix(output_path.suffix + ".events.jsonl")
+    events = [
+        json.loads(line)["event"]
+        for line in log_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert events == ["run_started", "interrupted", "compacted_after_interrupt"]
+
 
 @patch("tools.style_classification.run_pipeline._enrich")
 def test_keyboard_interrupt_cancels_thread_pool(mock_enrich, tmp_path) -> None:
@@ -97,3 +105,46 @@ def test_keyboard_interrupt_cancels_thread_pool(mock_enrich, tmp_path) -> None:
     lines = [line for line in output_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) < 4
     assert len(lines) == len(set(lines))
+
+
+@patch("tools.style_classification.run_pipeline._enrich")
+def test_interrupt_compaction_merges_latest_disk_output(mock_enrich, tmp_path) -> None:
+    input_path = tmp_path / "in.jsonl"
+    output_path = tmp_path / "out.jsonl"
+    records = [_sample_record(i) for i in range(3)]
+    input_path.write_text(
+        "\n".join(json.dumps(record) for record in records) + "\n",
+        encoding="utf-8",
+    )
+
+    calls = 0
+
+    def enrich_side_effect(record, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            with output_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(_enriched(records[2])) + "\n")
+            raise KeyboardInterrupt
+        return _enriched(record)
+
+    mock_enrich.side_effect = enrich_side_effect
+
+    with pytest.raises(SystemExit) as exc_info:
+        run(
+            input_path=input_path,
+            output_path=output_path,
+            use_llm=True,
+            workers=1,
+            resume=False,
+            pass_mode="full",
+            quiet=True,
+        )
+
+    assert exc_info.value.code == 130
+    rows = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert {row["metadata"]["chunk_index"] for row in rows} == {0, 2}

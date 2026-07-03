@@ -402,7 +402,7 @@ class TestInferenceSystemLabel:
     def test_non_openrouter_label_not_openrouter(self):
         with (
             patch.object(config, "LLM_BACKEND", "openai_chat"),
-            patch.object(config, "OLLAMA_URL", "http://127.0.0.1:1234/v1/chat/completions"),
+            patch.object(config, "OLLAMA_URL", "http://10.0.1.8:1234/v1/chat/completions"),
         ):
             label = config.infer_llm_inference_system_label()
         assert label != "OpenRouter" or "openrouter" not in (config.OLLAMA_URL or "").lower()

@@ -19,6 +19,10 @@ Usage:
     # Classify next pending segment
     python tools/incremental/manage.py classify-next --corpus literotica_stories --pass fast --workers 4
 
+    # Progress for a manual run_pipeline job (output in train/romance_corpus/)
+    python tools/incremental/manage.py classify-progress --corpus literotica_stories --segment 0
+    python tools/incremental/manage.py classify-progress --corpus literotica_stories --segment 0 --sync-ledger
+
     # Build mixed training batch (50 MB per corpus from available styled segments)
     python tools/incremental/manage.py build-batch --max-mb 50
 
@@ -41,6 +45,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tools.incremental.classification_progress import (
+    format_progress_report,
+    measure_classification_progress,
+    resolve_output_path,
+)
 from tools.incremental.ledger import (
     BATCHES_ROOT,
     INCREMENTAL_ROOT,
@@ -57,6 +66,90 @@ def _next_batch_id(ledger: Ledger) -> str:
     existing = [k for k in ledger.batches if k.startswith("batch_")]
     n = len(existing) + 1
     return f"batch_{n:03d}"
+
+
+def cmd_classify_progress(args: argparse.Namespace) -> None:
+    cfg = load_corpora_config()
+    segments: list[tuple[str | None, int | None, Path, Path | None]] = []
+
+    if args.input:
+        if not args.input.is_file():
+            raise SystemExit(f"Input not found: {args.input}")
+        segments.append((args.corpus, args.segment, args.input, args.output))
+    elif args.corpus:
+        slug = args.corpus
+        if slug not in cfg["corpora"]:
+            raise SystemExit(f"Unknown corpus: {slug}")
+        input_dir = corpus_segments_dir(slug, "input")
+        if not input_dir.is_dir():
+            raise SystemExit(f"No input segments: {input_dir}")
+
+        if args.all_segments:
+            paths = sorted(input_dir.glob("seg_*.jsonl"))
+        else:
+            idx = 0 if args.segment is None else args.segment
+            path = input_dir / f"seg_{idx:03d}.jsonl"
+            if not path.is_file():
+                raise SystemExit(f"Input segment not found: {path}")
+            paths = [path]
+
+        for path in paths:
+            idx = int(path.stem.split("_")[1])
+            out = args.output if (args.output and len(paths) == 1) else resolve_output_path(slug, idx, None)
+            segments.append((slug, idx, path, out))
+    else:
+        raise SystemExit("Specify --corpus or --input")
+
+    ledger = Ledger() if args.sync_ledger else None
+    pass_fast = args.pass_mode in ("fast", "full", "both")
+    pass_deep = args.pass_mode in ("deep", "full", "both")
+
+    for slug, idx, input_path, output_path in segments:
+        progress = measure_classification_progress(
+            input_path,
+            output_path,
+            pass_mode=args.pass_mode,
+            corpus=slug,
+            segment_index=idx,
+        )
+        if args.all_segments and args.quiet:
+            print(
+                f"{slug}/seg_{idx:03d}: "
+                f"{progress.complete:,}/{progress.pipeline_chunks:,} "
+                f"({progress.percent_complete:.1f}%)"
+            )
+        else:
+            print(format_progress_report(progress))
+            print()
+
+        if ledger is None or slug is None or idx is None:
+            continue
+
+        seg_id = segment_id(slug, idx)
+        if progress.pending == 0 and progress.pipeline_chunks > 0:
+            if output_path is None:
+                continue
+            ledger.mark_classified(seg_id, output_path, pass_fast=pass_fast, pass_deep=pass_deep)
+        elif progress.complete > 0:
+            seg = ledger.get_segment(seg_id) or {}
+            seg.update(
+                {
+                    "id": seg_id,
+                    "corpus": slug,
+                    "segment_index": idx,
+                    "input_path": str(input_path.relative_to(ROOT)).replace("\\", "/"),
+                    "classification_status": "in_progress",
+                    "training_status": "unavailable",
+                }
+            )
+            if output_path is not None:
+                seg["styled_path"] = str(output_path.relative_to(ROOT)).replace("\\", "/")
+            seg["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            ledger.segments[seg_id] = seg
+
+    if ledger is not None:
+        ledger.save()
+        print(f"Ledger updated -> {ledger.path.relative_to(ROOT)}")
 
 
 def cmd_status(_: argparse.Namespace) -> None:
@@ -332,6 +425,29 @@ def main() -> None:
     p_cls.add_argument("--workers", type=int, default=4)
     p_cls.add_argument("--quiet", action="store_true")
     p_cls.set_defaults(func=cmd_classify_next)
+
+    p_prog = sub.add_parser(
+        "classify-progress",
+        help="Show Phase 2 progress for a segment (works with manual run_pipeline output)",
+    )
+    p_prog.add_argument("--corpus", default=None)
+    p_prog.add_argument("--segment", type=int, default=None, help="Segment index (default: 0)")
+    p_prog.add_argument("--all-segments", action="store_true", help="Report every input segment")
+    p_prog.add_argument("--input", type=Path, default=None)
+    p_prog.add_argument("--output", type=Path, default=None)
+    p_prog.add_argument(
+        "--pass",
+        dest="pass_mode",
+        default="both",
+        choices=("fast", "deep", "full", "both"),
+    )
+    p_prog.add_argument(
+        "--sync-ledger",
+        action="store_true",
+        help="Update ledger.json from output progress (in_progress or classified)",
+    )
+    p_prog.add_argument("--quiet", action="store_true", help="One line per segment with --all-segments")
+    p_prog.set_defaults(func=cmd_classify_progress)
 
     p_batch = sub.add_parser("build-batch", help="Mixed training batch from available styled segments")
     p_batch.add_argument("--max-mb", type=int, default=50)

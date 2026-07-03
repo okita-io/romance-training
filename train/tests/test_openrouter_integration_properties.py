@@ -378,7 +378,7 @@ class TestBackwardCompatibility:
         For existing backends, generate() uses OLLAMA_URL and OPENAI_API_KEY
         (not OpenRouter URL/key).
         """
-        test_url = "http://127.0.0.1:1234/v1/chat/completions"
+        test_url = "http://10.0.1.8:1234/v1/chat/completions"
         test_openai_key = "sk-openai-test-key"
 
         with patch("romance_factory.core.ollama_client.requests.post") as mock_post:

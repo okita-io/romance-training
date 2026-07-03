@@ -41,7 +41,9 @@ Resume semantics stay the same as `run_pipeline.py`: skip records that already h
 
 ### Durability
 
-Every pass **appends one line and flushes after each chunk** — safe to interrupt at any time. On **Ctrl+C**, the pipeline cancels pending worker tasks, **compacts** the output file from its in-memory index (one line per chunk), and exits. Resume reloads the output file using last-wins per record key. If older append-only runs left extra duplicate lines, run `dedup_corpus_jsonl.py --in-place`.
+Every pass **appends one line and flushes after each chunk** — safe to interrupt at any time. On **Ctrl+C**, the pipeline cancels pending worker tasks, reloads the latest output from disk, **compacts** the output file to one line per chunk, and exits. Resume reloads the output file using last-wins per record key. If older append-only runs left extra duplicate lines, run `dedup_corpus_jsonl.py --in-place`.
+
+Each run also appends structured events to `train/incremental/logs/<output-stem>.events.jsonl` by default. The log records run starts, resume counts, periodic progress, interrupts, compaction counts, and completion. Use `--run-log <path>` to choose another JSONL log, or `--no-run-log` to disable it.
 
 When `--pass deep` or `--pass both` **finishes successfully**, the pipeline also rewrites the file once to remove duplicate keys.
 
