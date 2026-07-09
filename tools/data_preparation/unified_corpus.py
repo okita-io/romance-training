@@ -42,6 +42,9 @@ def word_count(text: str) -> int:
 
 
 def normalize_whitespace(text: str) -> str:
+    from tools.data_preparation.normalize_unicode import normalize_unicode_text
+
+    text = normalize_unicode_text(text).text
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -54,6 +57,7 @@ def normalize_prose_text(
     reflow_ocr: bool = True,
     strip_front_matter: bool = True,
     strip_victorian_section_titles: bool = True,
+    strip_web_markup: bool = True,
 ) -> str:
     """Normalize line endings, reflow OCR wraps, and strip leading front matter."""
     text = normalize_whitespace(text)
@@ -61,6 +65,13 @@ def normalize_prose_text(
         from tools.data_preparation.reflow_prose import reflow_ocr_prose
 
         text = reflow_ocr_prose(text)
+    if strip_web_markup:
+        from tools.data_preparation.strip_web_fiction_markup import strip_web_fiction_markup
+
+        text = strip_web_fiction_markup(text).text
+    from tools.data_preparation.strip_chapter_index import strip_inline_chapter_index
+
+    text = strip_inline_chapter_index(text).text
     if strip_front_matter:
         from tools.data_preparation.strip_front_matter import strip_front_matter as strip_fm
 
@@ -158,9 +169,14 @@ def normalize_record(
     extra: dict[str, Any] | None = None,
     min_words: int = 30,
     reflow_ocr: bool = True,
+    strip_web_markup: bool = True,
 ) -> dict[str, Any] | None:
     """Return a unified corpus record, or None if the text is too short."""
-    text = normalize_prose_text(text, reflow_ocr=reflow_ocr)
+    text = normalize_prose_text(
+        text,
+        reflow_ocr=reflow_ocr,
+        strip_web_markup=strip_web_markup,
+    )
     if word_count(text) < min_words:
         return None
 

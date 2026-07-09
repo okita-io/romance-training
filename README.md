@@ -391,6 +391,8 @@ Beyond the three recommended corpora above, these datasets have manifests and co
 | `taozi555/literotica-stories` | `literotica_stories` | ~645k story texts (~10.8 GB) | `convert_hf_parquet.py --dataset literotica_stories` |
 | `mrcedric98/fiction_books` | `fiction_books` | ~20k book chapters | `convert_hf_parquet.py --dataset fiction_books` |
 | `AlekseyKorshuk/fiction-books` | `fiction_books_korshuk` | ~4.7k BookRix novels (gated) | `convert_hf_parquet.py --dataset fiction_books_korshuk --chunk` |
+| `AlekseyKorshuk/erotic-books` | `erotic_books_korshuk` | ~646 BookRix novels | `convert_hf_parquet.py --dataset erotic_books_korshuk --chunk` |
+| `AlekseyKorshuk/fantasy-books` | `fantasy_books_korshuk` | BookRix fantasy novels (gated) | `convert_hf_parquet.py --dataset fantasy_books_korshuk --chunk` |
 | `molbal/horror-novel-chunks` | `horror_novel_chunks` | ~5.5k pre-chunked horror | `convert_hf_parquet.py --dataset horror_novel_chunks` |
 | `ppirli/Gutenberg-Fiction` | `gutenberg_fiction` | ~23k Gutenberg books (~4.8 GB) | `convert_hf_parquet.py --dataset gutenberg_fiction --chunk` |
 
@@ -399,12 +401,16 @@ Beyond the three recommended corpora above, these datasets have manifests and co
 python tools/data_preparation/download_hf_dataset.py taozi555/literotica-stories
 python tools/data_preparation/download_hf_dataset.py mrcedric98/fiction_books
 python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fiction-books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/erotic-books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fantasy-books
 python tools/data_preparation/download_hf_dataset.py molbal/horror-novel-chunks
 python tools/data_preparation/download_hf_dataset.py ppirli/Gutenberg-Fiction
 
 # Convert → source-data/processed/<slug>/chunks.jsonl
 python tools/data_preparation/convert_hf_parquet.py --dataset horror_novel_chunks
 python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books_korshuk --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset erotic_books_korshuk --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset fantasy_books_korshuk --chunk
 ```
 
-`AlekseyKorshuk/fiction-books` is gated like `romance-books` — accept HF terms before downloading.
+`AlekseyKorshuk/fiction-books`, `AlekseyKorshuk/fantasy-books`, and `AlekseyKorshuk/romance-books` are gated — accept HF terms before downloading.

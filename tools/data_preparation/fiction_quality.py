@@ -13,6 +13,8 @@ from tools.data_preparation.language_filter import (
 )
 from tools.data_preparation.prose_filter import classify_chunk_prose
 
+from tools.data_preparation.strip_web_fiction_markup import strip_html_markup as _strip_html_markup
+
 FictionTier = Literal["keep", "review", "drop"]
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
@@ -45,9 +47,7 @@ class FictionQuality:
 
 
 def strip_html(text: str) -> str:
-    text = _HTML_TAG_RE.sub(" ", text)
-    text = _HTML_ENTITY_RE.sub(" ", text)
-    return re.sub(r"\s+", " ", text).strip()
+    return _strip_html_markup(text)
 
 
 def _html_char_ratio(raw: str) -> float:

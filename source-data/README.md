@@ -17,6 +17,8 @@ source-data/
 │   ├── literotica_stories.json
 │   ├── fiction_books.json
 │   ├── fiction_books_korshuk.json
+│   ├── erotic_books_korshuk.json
+│   ├── fantasy_books_korshuk.json
 │   ├── horror_novel_chunks.json
 │   └── gutenberg_fiction.json
 ├── processed/          # Per-dataset extractions (gitignored)
@@ -59,6 +61,8 @@ python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/romance-book
 python tools/data_preparation/download_hf_dataset.py taozi555/literotica-stories
 python tools/data_preparation/download_hf_dataset.py mrcedric98/fiction_books
 python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fiction-books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/erotic-books
+python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fantasy-books
 python tools/data_preparation/download_hf_dataset.py molbal/horror-novel-chunks
 python tools/data_preparation/download_hf_dataset.py ppirli/Gutenberg-Fiction
 ```
@@ -71,6 +75,8 @@ Convert parquet datasets to Phase 2 input:
 python tools/data_preparation/convert_hf_parquet.py --dataset horror_novel_chunks
 python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books
 python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books_korshuk --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset erotic_books_korshuk --chunk
+python tools/data_preparation/convert_hf_parquet.py --dataset fantasy_books_korshuk --chunk
 python tools/data_preparation/convert_hf_parquet.py --dataset gutenberg_fiction --chunk
 python tools/data_preparation/convert_hf_parquet.py --dataset literotica_stories
 ```
@@ -85,10 +91,12 @@ python tools/data_preparation/convert_hf_parquet.py --dataset literotica_stories
 | `taozi555/literotica-stories` | Story texts | ~645k rows (~10.8 GB) | Contemporary fiction register, dialogue |
 | `mrcedric98/fiction_books` | Book **chapters** | ~20k rows | Chapter-level narrative prose |
 | `AlekseyKorshuk/fiction-books` | BookRix **full novels** (gated) | ~4.7k books | General fiction — same schema as romance-books |
+| `AlekseyKorshuk/erotic-books` | BookRix **full novels** | ~646 books | Erotica register, intimate prose |
+| `AlekseyKorshuk/fantasy-books` | BookRix **full novels** (gated) | ~268 MB | Fantasy register, worldbuilding |
 | `molbal/horror-novel-chunks` | Pre-chunked Gutenberg horror | ~5.5k chunks | Horror register, atmosphere, pacing |
 | `ppirli/Gutenberg-Fiction` | Gutenberg **full books** | ~23k books (~4.8 GB) | Broad literary fiction baseline |
 
-`AlekseyKorshuk/romance-books` and `AlekseyKorshuk/fiction-books` are **gated**: log in at Hugging Face, accept the dataset terms, and enable gated repos on your token before downloading.
+`AlekseyKorshuk/romance-books`, `AlekseyKorshuk/fiction-books`, and `AlekseyKorshuk/fantasy-books` are **gated**: log in at Hugging Face, accept the dataset terms, and enable gated repos on your token before downloading.
 
 ## Gothic Gutenberg corpus
 

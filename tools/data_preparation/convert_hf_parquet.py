@@ -12,6 +12,12 @@ Usage:
     python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fiction-books
     python tools/data_preparation/convert_hf_parquet.py --dataset fiction_books_korshuk --chunk
 
+    python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/erotic-books
+    python tools/data_preparation/convert_hf_parquet.py --dataset erotic_books_korshuk --chunk
+
+    python tools/data_preparation/download_hf_dataset.py AlekseyKorshuk/fantasy-books
+    python tools/data_preparation/convert_hf_parquet.py --dataset fantasy_books_korshuk --chunk
+
     python tools/data_preparation/download_hf_dataset.py ppirli/Gutenberg-Fiction
     python tools/data_preparation/convert_hf_parquet.py --dataset gutenberg_fiction --chunk
 """
@@ -235,6 +241,7 @@ def book_to_story(
             **book.get("extra", {}),
         },
         min_words=min_words,
+        strip_web_markup=manifest.get("strip_web_markup", True),
     )
     if record is None:
         return None
@@ -277,6 +284,7 @@ def books_to_chunks(
                 "chunk_boundary": "sentence",
             },
             min_words=30,
+            strip_web_markup=manifest.get("strip_web_markup", True),
         )
         if record:
             record["metadata"].update({

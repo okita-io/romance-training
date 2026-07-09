@@ -16,6 +16,8 @@ train/incremental/
     literotica_stories/
     fiction_books/
     gutenberg_fiction/
+    erotic_books_korshuk/
+    fantasy_books_korshuk/
   batches/
     batch_001/
       manifest.json

@@ -1,0 +1,11 @@
+{
+  "repo_id": "AlekseyKorshuk/erotic-books",
+  "slug": "erotic_books_korshuk",
+  "genres": ["erotica", "bookrix"],
+  "files": "data/*.parquet",
+  "text_field": "text",
+  "bookrix_metadata": true,
+  "extra_fields": ["url"],
+  "min_words": 100,
+  "notes": "646 BookRix full novels (url + text). Use convert_hf_parquet.py --chunk."
+}

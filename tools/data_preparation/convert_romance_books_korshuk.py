@@ -197,7 +197,7 @@ def main() -> None:
         chunks, skipped_prose = filter_records(chunks)
         write_jsonl(chunks, output_dir / "chunks.jsonl")
         chunk_count = len(chunks)
-        print(f"Wrote {chunk_count} chunks → {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
+        print(f"Wrote {chunk_count} chunks -> {(output_dir / 'chunks.jsonl').relative_to(ROOT)}")
         if skipped_prose:
             print(f"Prose filter dropped {sum(skipped_prose.values())} non-narrative chunks")
 

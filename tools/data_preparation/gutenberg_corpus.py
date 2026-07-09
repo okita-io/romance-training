@@ -122,6 +122,12 @@ def _normalize_gutenberg_whitespace(text: str) -> str:
     return text.strip()
 
 
+def _strip_inline_chapter_index(text: str) -> str:
+    from tools.data_preparation.strip_chapter_index import strip_inline_chapter_index
+
+    return strip_inline_chapter_index(text).text
+
+
 def _strip_table_of_contents(text: str) -> str:
     """Remove Contents blocks that precede the first chapter body."""
     chapter_body = re.compile(
@@ -157,6 +163,7 @@ def clean_gutenberg_prose(text: str, *, strip_toc: bool = True) -> str:
     text = _ILLUSTRATION_INLINE_RE.sub("", text)
     text = _EDITION_NOTICE_RE.sub("", text)
     if strip_toc:
+        text = _strip_inline_chapter_index(text)
         text = _strip_table_of_contents(text)
     text = _TRAILING_LICENSE_RE.sub("", text)
     return _normalize_gutenberg_whitespace(text)
