@@ -1,12 +1,20 @@
 {
   "max_segment_mb_default": 50,
   "training_mix_corpora": [
+    "romance_books_korshuk",
     "horror_novel_chunks",
     "literotica_stories",
     "fiction_books",
-    "gutenberg_fiction"
+    "gutenberg_fiction",
+    "erotic_books_korshuk",
+    "fantasy_books_korshuk"
   ],
   "corpora": {
+    "romance_books_korshuk": {
+      "label": "Romance books (BookRix full novels)",
+      "input": "source-data/processed/romance_books_korshuk/chunks.jsonl",
+      "expansion_ratio": 1.0
+    },
     "horror_novel_chunks": {
       "label": "Horror (Gutenberg chunks)",
       "input": "source-data/processed/horror_novel_chunks/chunks.jsonl",
@@ -27,6 +35,16 @@
       "label": "Gutenberg fiction (~500w chunks)",
       "input": "source-data/processed/gutenberg_fiction/chunks.jsonl",
       "expansion_ratio": 1.0
+    },
+    "erotic_books_korshuk": {
+      "label": "Erotic books (BookRix full novels)",
+      "input": "source-data/processed/erotic_books_korshuk/chunks.jsonl",
+      "expansion_ratio": 3.0
+    },
+    "fantasy_books_korshuk": {
+      "label": "Fantasy books (BookRix full novels)",
+      "input": "source-data/processed/fantasy_books_korshuk/chunks.jsonl",
+      "expansion_ratio": 3.0
     }
   }
 }

@@ -210,13 +210,11 @@ Full LLM on ~193k chunks at ~2–5 s/chunk is **days of runtime** — safe to in
 Merge styled corpora, then generate train/val JSONL:
 
 ```bash
-cat train/romance_corpus/korshuk_styled.jsonl \
-    train/romance_corpus/gothic_styled.jsonl \
-    train/romance_corpus/romance_32k_styled.jsonl \
-    > train/romance_corpus/combined_styled.jsonl
+cat train/romance_corpus/*_styled_seg_*.jsonl \
+    > train/style_training/combined_styled.jsonl
 
 python tools/training_formats/generate_instruction_pairs.py \
-  --input train/romance_corpus/combined_styled.jsonl \
+  --input train/style_training/combined_styled.jsonl \
   --output-dir train/style_training
 ```
 
@@ -256,7 +254,7 @@ git pull
   → download_hf_dataset.py (×3 recommended)
   → convert_* / split_romance_parquet.py --chunk
   → run_pipeline.py (per corpus, resumable)
-  → cat *_styled.jsonl → combined_styled.jsonl
+  → cat *_styled_seg_*.jsonl → train/style_training/combined_styled.jsonl
   → generate_instruction_pairs.py
   → train_qwen_unsloth.py
 ```
