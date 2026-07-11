@@ -39,7 +39,7 @@ def _enriched(record: dict) -> dict:
 
 def test_default_manual_output_path() -> None:
     path = default_manual_output("literotica_stories", 0)
-    assert path.name == "literotica_stories_deep_seg_000.jsonl"
+    assert path.name == "literotica_stories_styled_seg_000.jsonl"
     assert path.parent.name == "romance_corpus"
 
 

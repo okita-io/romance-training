@@ -16,6 +16,16 @@ romance_qwen_*/
 romance-training-deploy/
 romance-training-deploy.tar.gz
 
+# Phase 3–4 training outputs (generated locally — see README / GPU_RUNBOOK)
+train/style_training/
+train/mistral_style_lora/
+train/mistral_style_f16/
+train/mistral_style_q5/
+train/mistral_style_q4/
+train/unsloth_compiled_cache/
+train/training.log
+*.log
+
 # Large artifacts (corpus JSONL may be local-only)
 train/romance_corpus/*.jsonl
 train/staging/

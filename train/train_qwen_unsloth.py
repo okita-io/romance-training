@@ -22,6 +22,10 @@ Requirements:
 Restarts / resume:
   - By default each run retrains from step 0 (same max_steps). Hub model weights reuse the local HF cache.
   - --resume           continue from latest checkpoint in output_dir, or --resume path/to/checkpoint-N
+  - --auto-resume      same as --resume when a checkpoint exists; otherwise start fresh
+  - LoRA is always created via Unsloth get_peft_model(); Trainer loads checkpoint weights/optimizer on resume.
+  - Checkpoints are written every save_steps (optimizer + LoRA weights). On CUDA OOM the script attempts
+    an emergency checkpoint under output_dir/checkpoint-{step}-emergency before exiting.
   - --export-only      skip training; reload LoRA from output_dir and redo save + GGUF (if training finished
                        and adapter_config.json exists but GGUF downloads stalled)
 
@@ -52,6 +56,8 @@ from typing import Any
 
 # Allow `python train_qwen_unsloth.py` without `pip install -e .`
 _train_root = Path(__file__).resolve().parent
+if str(_train_root) not in sys.path:
+    sys.path.insert(0, str(_train_root))
 _train_src = _train_root / "src"
 if _train_src.is_dir():
     _sp = str(_train_src)
@@ -103,6 +109,11 @@ from trl import SFTConfig, SFTTrainer
 import trl
 
 from romance_factory.cli_training_charts import CliChartLoggerCallback, parse_report_to
+from romance_factory.training_checkpoints import (
+    checkpoint_global_step,
+    find_latest_checkpoint,
+    resolve_resume_checkpoint,
+)
 
 _TRL_VER = Version(trl.__version__)
 _TF_VER = Version(transformers.__version__)
@@ -138,6 +149,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "logging_steps": 10,
         "save_steps": 250,
         "eval_steps": 250,
+        "eval_batch_size": 1,
         "report_to": "none",
     },
     "paths": {
@@ -181,6 +193,34 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 def _resolve_path(p: str) -> Path:
     q = Path(p)
     return q if q.is_absolute() else (_REPO_ROOT / q)
+
+
+def _format_instruction_example(example: dict[str, Any], tokenizer: Any) -> str:
+    """Turn Phase 3 instruction pairs into a single SFT text field."""
+    if example.get("text"):
+        return str(example["text"])
+
+    instruction = str(example.get("instruction") or "").strip()
+    input_text = str(example.get("input") or "").strip()
+    output = str(example.get("output") or "").strip()
+    user = instruction
+    if input_text:
+        user = f"{instruction}\n\n{input_text}"
+
+    messages = [
+        {"role": "user", "content": user},
+        {"role": "assistant", "content": output},
+    ]
+    if hasattr(tokenizer, "apply_chat_template"):
+        try:
+            return tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+        except Exception:
+            pass
+    return f"<s>[INST] {user} [/INST] {output}</s>"
 
 
 def load_train_config(cli_config: Path | None) -> dict[str, Any]:
@@ -235,6 +275,11 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--auto-resume",
+        action="store_true",
+        help="Resume from the latest checkpoint in output_dir when one exists; otherwise start fresh.",
+    )
+    p.add_argument(
         "--export-only",
         action="store_true",
         help=(
@@ -243,6 +288,84 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     return p.parse_args()
+
+
+def _resolve_train_resume(args: argparse.Namespace, output_dir: str) -> str | None:
+    if args.export_only:
+        return None
+    if args.auto_resume:
+        return resolve_resume_checkpoint(True, output_dir)
+    if args.resume is not None:
+        try:
+            resolved = resolve_resume_checkpoint(args.resume, output_dir)
+        except FileNotFoundError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if resolved is None and args.resume is True:
+            print(
+                "WARNING: --resume requested but no checkpoint found under "
+                f"{output_dir}; starting fresh.",
+                file=sys.stderr,
+            )
+        return resolved
+    return None
+
+
+def _attempt_emergency_checkpoint(trainer: Any, output_dir: str) -> Path | None:
+    """Best-effort checkpoint when training dies mid-step (e.g. CUDA OOM during eval)."""
+    step = getattr(getattr(trainer, "state", None), "global_step", None)
+    if step is None:
+        return None
+
+    try:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        if hasattr(trainer, "save_state"):
+            trainer.save_state()
+            ckpt = Path(output_dir) / f"checkpoint-{step}"
+            if ckpt.is_dir():
+                print(f"  Emergency checkpoint saved to {ckpt}", file=sys.stderr)
+                return ckpt
+        emergency = Path(output_dir) / f"checkpoint-{step}-emergency"
+        emergency.mkdir(parents=True, exist_ok=True)
+        trainer.save_model(str(emergency))
+        print(f"  Emergency adapter-only checkpoint saved to {emergency}", file=sys.stderr)
+        return emergency
+    except Exception as exc:
+        print(f"  Emergency checkpoint failed: {exc}", file=sys.stderr)
+        return None
+
+
+def _train_with_recovery(trainer: Any, resume_from_checkpoint: str | None, output_dir: str) -> None:
+    try:
+        trainer.train(resume_from_checkpoint=resume_from_checkpoint)
+    except torch.cuda.OutOfMemoryError as exc:
+        print("\nCUDA out of memory during training.", file=sys.stderr)
+        if torch.cuda.is_available():
+            free_gb = torch.cuda.mem_get_info()[0] / (1024**3)
+            total_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            print(
+                f"  GPU memory: {free_gb:.2f} GiB free of {total_gb:.2f} GiB total. "
+                "If another process is using the GPU, stop it before resuming.",
+                file=sys.stderr,
+            )
+        saved = _attempt_emergency_checkpoint(trainer, output_dir)
+        if saved is not None:
+            print(
+                f"\nResume with:\n"
+                f"  ./run_phase4_docker.sh --resume {saved}\n",
+                file=sys.stderr,
+            )
+        else:
+            latest = find_latest_checkpoint(output_dir)
+            if latest is not None:
+                step = checkpoint_global_step(latest)
+                print(
+                    f"\nLatest regular checkpoint: {latest} (step {step}). Resume with:\n"
+                    f"  ./run_phase4_docker.sh --resume\n",
+                    file=sys.stderr,
+                )
+        raise SystemExit(1) from exc
 
 
 args = _parse_args()
@@ -270,6 +393,7 @@ WARMUP_STEPS = int(_train["warmup_steps"])
 LOGGING_STEPS = int(_train["logging_steps"])
 SAVE_STEPS = int(_train["save_steps"])
 EVAL_STEPS = int(_train["eval_steps"])
+EVAL_BATCH_SIZE = int(_train.get("eval_batch_size", 1))
 REPORT_TO_RAW = str(_train["report_to"])
 REPORT_TO, USE_CLI_CHARTS = parse_report_to(REPORT_TO_RAW)
 
@@ -277,6 +401,7 @@ DATA_DIR = _resolve_path(str(_paths["data_dir"]))
 TRAIN_FILE = DATA_DIR / "train.jsonl"
 VAL_FILE = DATA_DIR / "validation.jsonl"
 OUTPUT_DIR = str(_resolve_path(str(_paths["output_dir"])))
+RESUME_CHECKPOINT = _resolve_train_resume(args, OUTPUT_DIR)
 
 EXPORT_F16 = str(_resolve_path(str(_export["f16_dir"])))
 EXPORT_Q5 = str(_resolve_path(str(_export["q5_dir"])))
@@ -323,19 +448,31 @@ if args.export_only:
     # so PEFT merge is skipped and 4-bit save hits Transformers NotImplementedError. Bind to PeftModel.
     model.save_pretrained_gguf = types.MethodType(unsloth_save_pretrained_gguf, model)
 else:
-    # 2. Add LoRA adapters
-    print("[2/6] Adding LoRA adapters...")
+    # 2. Add LoRA adapters — always via Unsloth (required for grad flow / for_training).
+    # Checkpoint weights are restored by trainer.train(resume_from_checkpoint=...).
+    if RESUME_CHECKPOINT:
+        print(
+            f"[2/6] Adding LoRA adapters "
+            f"(will restore weights from {RESUME_CHECKPOINT})..."
+        )
+    else:
+        print("[2/6] Adding LoRA adapters...")
+    _lora_targets = _lora.get(
+        "target_modules",
+        ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    )
     model = FastLanguageModel.get_peft_model(
         model,
         r=LORA_RANK,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                        "gate_proj", "up_proj", "down_proj"],
+        target_modules=list(_lora_targets),
         lora_alpha=LORA_ALPHA,
         lora_dropout=0,
         bias="none",
         use_gradient_checkpointing="unsloth",
         random_state=3407,
     )
+    if hasattr(model, "for_training"):
+        model.for_training(use_gradient_checkpointing="unsloth")
 
     # 3. Load training data
     print(f"[3/6] Loading data from {DATA_DIR}...")
@@ -346,6 +483,34 @@ else:
 
     print(f"  Train samples: {len(dataset['train'])}")
     print(f"  Val samples: {len(dataset['validation'])}")
+    sample_fields = set(dataset["train"].column_names)
+    if "text" not in sample_fields:
+        if not {"instruction", "output"}.issubset(sample_fields):
+            print(
+                "ERROR: expected Phase 3 JSONL with instruction/input/output "
+                f"(or text); got columns: {sorted(sample_fields)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print("  Formatting instruction pairs for SFT...")
+
+    def formatting_func(examples: dict[str, Any]) -> list[str]:
+        if examples.get("text"):
+            texts = examples["text"]
+            return texts if isinstance(texts, list) else [texts]
+
+        instructions = examples.get("instruction") or []
+        if not isinstance(instructions, list):
+            instructions = [instructions]
+        n = len(instructions)
+        formatted: list[str] = []
+        for i in range(n):
+            record = {
+                key: (values[i] if isinstance(values, list) else values)
+                for key, values in examples.items()
+            }
+            formatted.append(_format_instruction_example(record, tokenizer))
+        return formatted
 
     # 4. Setup trainer
     print("[4/6] Setting up trainer...")
@@ -367,11 +532,11 @@ else:
         optim="adamw_8bit",
         save_steps=SAVE_STEPS,
         eval_steps=EVAL_STEPS,
+        per_device_eval_batch_size=EVAL_BATCH_SIZE,
         save_strategy="steps",
         eval_strategy="steps",
         load_best_model_at_end=True,
         report_to=REPORT_TO,
-        dataset_text_field="text",
         max_length=SFT_MAX_SEQ_LENGTH,
     )
     trainer = SFTTrainer(
@@ -380,6 +545,7 @@ else:
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
         processing_class=tokenizer,
+        formatting_func=formatting_func,
     )
     if USE_CLI_CHARTS:
         trainer.add_callback(CliChartLoggerCallback(OUTPUT_DIR))
@@ -387,12 +553,23 @@ else:
     # 5. Train!
     print(f"[5/6] Starting training for {MAX_STEPS} steps...")
     print(f"  Effective batch size: {BATCH_SIZE * GRAD_ACCUM}")
+    print(f"  Eval batch size: {EVAL_BATCH_SIZE}")
     print(f"  Estimated time: ~{MAX_STEPS * BATCH_SIZE * GRAD_ACCUM / 60:.1f} minutes on RTX 4090")
-    if args.resume is not None:
-        print(f"  resume_from_checkpoint={args.resume!r}")
+    if RESUME_CHECKPOINT:
+        step = checkpoint_global_step(RESUME_CHECKPOINT)
+        print(f"  Resuming from checkpoint step {step}: {RESUME_CHECKPOINT}")
+    elif not args.export_only:
+        latest = find_latest_checkpoint(OUTPUT_DIR)
+        if latest is not None:
+            step = checkpoint_global_step(latest)
+            print(
+                f"\n  NOTE: Found checkpoint at step {step} ({latest}). "
+                "Re-run with --resume or --auto-resume to continue, "
+                "or remove checkpoint-* to start from scratch."
+            )
     print()
 
-    trainer.train(resume_from_checkpoint=args.resume)
+    _train_with_recovery(trainer, RESUME_CHECKPOINT, OUTPUT_DIR)
 
 # 6. Save and export
 print("\n[6/6] Saving and exporting models...")

@@ -24,11 +24,13 @@ warmup_steps = 50
 logging_steps = 25
 save_steps = 500
 eval_steps = 500
+eval_batch_size = 1
 # none | tensorboard | wandb | cli | tensorboard,cli
 report_to = "cli"
 
 [paths]
-data_dir = "train/style_training"
+# Paths are relative to train/ (where train_qwen_unsloth.py lives).
+data_dir = "style_training"
 output_dir = "mistral_style_lora"
 
 [export]

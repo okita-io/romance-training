@@ -34,7 +34,7 @@ class ClassificationProgress:
 
 def default_manual_output(corpus: str, segment_index: int) -> Path:
     """Default styled path for direct ``run_pipeline.py`` segment runs."""
-    return ROOT / "train" / "romance_corpus" / f"{corpus}_deep_seg_{segment_index:03d}.jsonl"
+    return ROOT / "train" / "romance_corpus" / f"{corpus}_styled_seg_{segment_index:03d}.jsonl"
 
 
 def resolve_output_path(
@@ -45,9 +45,14 @@ def resolve_output_path(
     if output is not None:
         return output
     if corpus is not None and segment_index is not None:
-        candidate = default_manual_output(corpus, segment_index)
-        if candidate.is_file():
-            return candidate
+        corpus_dir = ROOT / "train" / "romance_corpus"
+        for name in (
+            f"{corpus}_styled_seg_{segment_index:03d}.jsonl",
+            f"{corpus}_deep_seg_{segment_index:03d}.jsonl",
+        ):
+            candidate = corpus_dir / name
+            if candidate.is_file():
+                return candidate
         styled = (
             ROOT
             / "train"
