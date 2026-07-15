@@ -100,7 +100,8 @@ def _ensure_windows_build_tools_on_path() -> None:
 _ensure_windows_build_tools_on_path()
 
 import unsloth  # noqa: F401 — apply patches before other HF imports
-from unsloth import FastLanguageModel
+from unsloth import FastLanguageModel, FastModel
+from unsloth.chat_templates import get_chat_template
 import torch
 import transformers
 from datasets import load_dataset
@@ -134,10 +135,14 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "base": "Qwen/Qwen3.5-35B-A3B",
         "max_seq_length": 4096,
         "load_in_4bit": True,
+        "load_in_16bit": False,
+        "family": "auto",
+        "chat_template": "",
     },
     "lora": {
         "rank": 16,
         "alpha": 16,
+        "text_only": False,
     },
     "training": {
         "batch_size": 2,
@@ -193,6 +198,85 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 def _resolve_path(p: str) -> Path:
     q = Path(p)
     return q if q.is_absolute() else (_REPO_ROOT / q)
+
+
+def _is_gemma4_model(base_model: str, family: str) -> bool:
+    if family == "gemma4":
+        return True
+    if family and family != "auto":
+        return False
+    needle = base_model.lower()
+    return "gemma-4" in needle or "gemma4" in needle
+
+
+def _load_base_model(
+    *,
+    base_model: str,
+    family: str,
+    max_seq_length: int,
+    load_in_4bit: bool,
+    load_in_16bit: bool,
+):
+    gemma4 = _is_gemma4_model(base_model, family)
+    if gemma4:
+        print("  Architecture: Gemma 4 (FastModel, MoE)")
+        # Spark / single-GPU: pin all params (incl. vision_tower buffers std_bias/
+        # std_scale) onto cuda:0. Unsloth's default device_map="sequential" can
+        # omit those buffers and fail accelerate's check_device_map.
+        return FastModel.from_pretrained(
+            model_name=base_model,
+            max_seq_length=max_seq_length,
+            dtype=None,
+            load_in_4bit=load_in_4bit,
+            load_in_16bit=load_in_16bit,
+            full_finetuning=False,
+            device_map={"": 0},
+        )
+    return FastLanguageModel.from_pretrained(
+        model_name=base_model,
+        max_seq_length=max_seq_length,
+        dtype=None,
+        load_in_4bit=load_in_4bit,
+    )
+
+
+def _attach_lora(
+    model,
+    *,
+    gemma4: bool,
+    lora_cfg: dict[str, Any],
+    lora_rank: int,
+    lora_alpha: int,
+):
+    if gemma4:
+        text_only = bool(lora_cfg.get("text_only", True))
+        return FastModel.get_peft_model(
+            model,
+            finetune_vision_layers=not text_only,
+            finetune_language_layers=True,
+            finetune_attention_modules=True,
+            finetune_mlp_modules=True,
+            r=lora_rank,
+            lora_alpha=lora_alpha,
+            lora_dropout=0,
+            bias="none",
+            use_gradient_checkpointing="unsloth",
+            random_state=3407,
+        )
+    _lora_targets = lora_cfg.get(
+        "target_modules",
+        ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    )
+    return FastLanguageModel.get_peft_model(
+        model,
+        r=lora_rank,
+        target_modules=list(_lora_targets),
+        lora_alpha=lora_alpha,
+        lora_dropout=0,
+        bias="none",
+        use_gradient_checkpointing="unsloth",
+        random_state=3407,
+    )
 
 
 def _format_instruction_example(example: dict[str, Any], tokenizer: Any) -> str:
@@ -380,6 +464,10 @@ _export = _cfg["export"]
 BASE_MODEL = str(_model["base"])
 MAX_SEQ_LENGTH = int(_model["max_seq_length"])
 LOAD_IN_4BIT = bool(_model["load_in_4bit"])
+LOAD_IN_16BIT = bool(_model.get("load_in_16bit", False))
+MODEL_FAMILY = str(_model.get("family", "auto"))
+CHAT_TEMPLATE = str(_model.get("chat_template", "")).strip()
+IS_GEMMA4 = _is_gemma4_model(BASE_MODEL, MODEL_FAMILY)
 
 LORA_RANK = int(_lora["rank"])
 LORA_ALPHA = int(_lora["alpha"])
@@ -419,16 +507,26 @@ if torch.cuda.is_available():
             "often needs ~40+ GiB for 4-bit QLoRA. If load fails, set model.base in "
             "train_config.toml to e.g. Qwen/Qwen2.5-14B-Instruct\n"
         )
+    if IS_GEMMA4 and _vram_gb < 40 and LOAD_IN_16BIT:
+        print(
+            f"\nWARNING: GPU reports ~{_vram_gb:.1f} GiB VRAM; Gemma 4 26B-A4B 16-bit LoRA "
+            "typically needs ~40+ GiB. DGX Spark unified memory is usually fine; "
+            "lower batch_size if you hit OOM.\n"
+        )
 
 # 1. Load model (and LoRA: new training vs. export-only resume)
 print("\n[1/6] Loading base model...")
 print(f"  Model: {BASE_MODEL}")
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=BASE_MODEL,
+model, tokenizer = _load_base_model(
+    base_model=BASE_MODEL,
+    family=MODEL_FAMILY,
     max_seq_length=MAX_SEQ_LENGTH,
-    dtype=None,  # Auto-detect (bf16 if available)
     load_in_4bit=LOAD_IN_4BIT,
+    load_in_16bit=LOAD_IN_16BIT,
 )
+if IS_GEMMA4 and CHAT_TEMPLATE:
+    tokenizer = get_chat_template(tokenizer, chat_template=CHAT_TEMPLATE)
+    print(f"  Chat template: {CHAT_TEMPLATE}")
 
 if args.export_only:
     _adapter_cfg = Path(OUTPUT_DIR) / "adapter_config.json"
@@ -457,19 +555,12 @@ else:
         )
     else:
         print("[2/6] Adding LoRA adapters...")
-    _lora_targets = _lora.get(
-        "target_modules",
-        ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    )
-    model = FastLanguageModel.get_peft_model(
+    model = _attach_lora(
         model,
-        r=LORA_RANK,
-        target_modules=list(_lora_targets),
+        gemma4=IS_GEMMA4,
+        lora_cfg=_lora,
+        lora_rank=LORA_RANK,
         lora_alpha=LORA_ALPHA,
-        lora_dropout=0,
-        bias="none",
-        use_gradient_checkpointing="unsloth",
-        random_state=3407,
     )
     if hasattr(model, "for_training"):
         model.for_training(use_gradient_checkpointing="unsloth")
@@ -581,7 +672,12 @@ tokenizer.save_pretrained(OUTPUT_DIR)
 
 # Export to GGUF (multiple quantizations)
 print("  Exporting to GGUF formats...")
-print("    - F16 (full precision, ~65GB)")
+if IS_GEMMA4:
+    print("    - F16 (~52 GB for Gemma 4 26B-A4B)")
+    print("    - Q5_K_M (~19 GB)")
+    print("    - Q4_K_M (~17 GB; LM Studio: prefer Unsloth UD-Q4_K_XL if re-quantizing)")
+else:
+    print("    - F16 (full precision, ~65GB)")
 model.save_pretrained_gguf(
     EXPORT_F16,
     tokenizer,
@@ -613,5 +709,10 @@ print("\nCopy any .gguf file to LM Studio and load it!")
 print("\nRecommended LM Studio settings:")
 print("  Temperature: 1.0")
 print("  Top P: 0.95")
-print("  Top K: 20")
-print("  Presence Penalty: 1.5")
+if IS_GEMMA4:
+    print("  Top K: 64")
+    print("  Chat template: Auto (gemma4)")
+    print("  Thinking: off for style classification / JSON tasks")
+else:
+    print("  Top K: 20")
+    print("  Presence Penalty: 1.5")

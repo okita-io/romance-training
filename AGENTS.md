@@ -1,28 +1,35 @@
 ## Project overview
 
-**Style Classifier Training** — a pipeline to annotate prose with Leech & Short style metrics and fine-tune Mistral-Nemo 12B as a prose style judge, classifier, and rewriter.
+**Style Classifier Training** — annotate prose with Leech & Short style metrics and fine-tune a prose style judge / classifier. **Active training target:** Gemma 4 26B-A4B QAT on DGX Spark.
 
-See `README.md` for the full pipeline, layout, and backlog.
+See `README.md` for the full pipeline, layout, and backlog. Phase 5 plan: `docs/PHASE5_STYLE_STEERING.md`.
 
-**Fresh clone on the 3090:** `docs/GPU_RUNBOOK.md` — HF downloads, corpus conversion, resumable Phase 2, training.
+**Machine split:**
+- **DGX Spark (`spark-4f07`, ~128 GB unified Blackwell + CUDA)** — **all Phase 4+ LoRA training** and GGUF export.
+- **RTX 3090 (24 GB) + LM Studio** — **inference only** (quantized finished GGUFs), optional Phase 2 labeling. Do **not** fine-tune here.
+
+**Data prep / Phase 2 on the 3090:** `docs/GPU_RUNBOOK.md`.
+
+**Training on Spark:** `train/train_config.gemma4_spark.toml` + `./run_phase4_docker.sh`.
 
 ## Development environment
 
 - Python **3.12** recommended (3.10+ minimum).
-- CUDA GPU for training (RTX 3090, 24 GB tested).
-- **LM Studio** (default) or Ollama for LLM-based metrics and rubric extraction.
+- **DGX Spark (`spark-4f07`)**: Phase 4 fine-tuning (Gemma 4 26B-A4B QAT; Mistral-Nemo legacy paused at checkpoint-1750).
+- **RTX 3090** (24 GB): quantized GGUF inference in LM Studio; optional Phase 2 classification.
+- **LM Studio** (default on 3090) or Ollama for LLM-based metrics and local eval of exported GGUFs.
 - **Vision LLM** (Qwen-VL / Qwen3.6) for Phase 1A PDF transcription.
 
 ```bash
 pip install -r requirements-train.txt
+# Local tooling only — Phase 4 training uses Unsloth dgxspark Docker on Spark
 pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 python -m spacy download en_core_web_sm
 
 # PDF for Phase 1 (bundled copy in style-guide/)
 mkdir -p source && cp style-guide/Style-in-Fiction.pdf source/
 
-# Training config (before Phase 4)
-cp train/train_config.example.toml train/train_config.toml
+# Active training is on Spark with train_config.gemma4_spark.toml (not the 3090 example)
 ```
 
 ## Key directories
@@ -58,11 +65,11 @@ python tools/style_extraction/distill_style_system.py --force
 # Phase 2 — classify corpus (sentence-boundary chunks; RAG context when LLM enabled)
 python tools/style_classification/run_pipeline.py
 
-# Phase 3 — instruction pairs
+# Phase 3 — instruction pairs (prefer on Spark before training)
 python tools/training_formats/generate_instruction_pairs.py
 
-# Phase 4 — fine-tune
-python train/train_qwen_unsloth.py
+# Phase 4 — fine-tune on DGX Spark only (not the 3090)
+cd train && ./run_phase4_docker.sh --config train_config.gemma4_spark.toml
 ```
 
 Computable-only Phase 2 (fast, no LLM): `python tools/style_classification/run_pipeline.py --no-llm`
@@ -71,4 +78,6 @@ Re-chunk or re-classify from scratch: add `--no-resume` to Phase 2.
 
 ## Active training config
 
-`train/train_config.toml` — Mistral-Nemo 12B, QLoRA rank 32, data at `train/style_training/`.
+**Primary:** `train/train_config.gemma4_spark.toml` — Gemma 4 26B-A4B QAT on **spark-4f07** via `./run_phase4_docker.sh`.
+
+**Legacy (paused):** `train/train_config.toml` — Mistral-Nemo 12B QLoRA at checkpoint-1750; resume on Spark only.

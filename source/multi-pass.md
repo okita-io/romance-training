@@ -1,6 +1,6 @@
 # Multi-pass LLM classification (Phase 2)
 
-Design note for speeding up bulk chunk classification on a 24 GB GPU (RTX 3090) using LM Studio.
+Design note for speeding up bulk chunk classification on a **24 GB inference GPU (RTX 3090)** using LM Studio. Phase 4+ **training** is on DGX Spark (`spark-4f07`), not this box.
 
 ## Problem
 

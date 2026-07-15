@@ -1,8 +1,11 @@
-# Template — copy to train_config.toml (or train_config.local.toml) and adjust.
-# Run from repo root: python train/train_qwen_unsloth.py
+# Template — legacy Mistral-Nemo example (paused at checkpoint-1750).
+# Active Phase 4 training: train_config.gemma4_spark.toml on DGX Spark (spark-4f07).
+# Do not use this file to train on the RTX 3090 — that host is inference-only.
+#
+# Run from Spark: ./run_phase4_docker.sh --config train_config.toml --resume
 # Optional env overrides: TRAIN_CONFIG_PATH, ROMANCE_BASE_MODEL
 
-# Mistral-Nemo 12B — fits on a single RTX 3090 (24 GB) in 4-bit QLoRA
+# Mistral-Nemo 12B — historical 4-bit QLoRA recipe (24 GB-class); Spark is the training host now
 [model]
 base = "mistralai/Mistral-Nemo-Instruct-2407"
 max_seq_length = 4096

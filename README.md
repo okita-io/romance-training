@@ -1,11 +1,37 @@
 # Style Classifier Training
 
-A pipeline to annotate prose with **Leech & Short style metrics** and fine-tune **Mistral-Nemo 12B** as a prose style judge, classifier, and rewriter.
+A pipeline to annotate prose with **Leech & Short style metrics** and fine-tune a prose style judge / classifier (active target: **Gemma 4 26B-A4B QAT** on DGX Spark).
 
 The trained model can:
 - **Classify** any passage — outputs a structured style profile (register, POV, figurative density, sentence rhythm, etc.)
 - **Judge** specific dimensions — "Analyze the verbosity of this passage", "What register is this written in?"
 - **Rewrite** to a target style — "Rewrite this in a more formal register" (Phase 3B — requires paired training data, built separately)
+
+## Machine setup (Spark trains; 3090 infers)
+
+**All LoRA / Phase 4+ training runs on DGX Spark.** The RTX 3090 is for quantized inference (LM Studio), optional Phase 2 labeling, and local testing — not for fine-tuning.
+
+| Machine | Host | Role | Phases |
+|---------|------|------|--------|
+| **DGX Spark** (`spark-4f07`, `10.0.1.4`) | `okita@spark-4f07` | **Training** — ~128 GB unified Blackwell + CUDA; Phase 3–4 LoRA + GGUF export | 3–4 (and later writer SFT) on Spark |
+| **RTX 3090** (Windows, 24 GB) | dev box + LM Studio | **Inference** — run quantized GGUFs; optional Phase 2 bulk labeling | 1–2 locally; load finished Q4/Q5 in LM Studio |
+
+**Current status (Jul 2026):**
+- **Spark:** Active Phase 4 — **Gemma 4 26B-A4B QAT** via `train/train_config.gemma4_spark.toml`. Mistral-Nemo 12B LoRA paused at **checkpoint-1750** (`train/mistral_style_lora/`).
+- **3090:** LM Studio for classification helpers and (after export) quantized Gemma evaluator GGUFs. Do **not** run Phase 4 training here.
+
+**Data flow:** Styled `*_styled_seg_*.jsonl` (often labeled on the 3090) → `scp` to Spark (`train/romance_corpus/`) → merge + Phase 3 on Spark → **train on Spark**. See [`train/romance_corpus/README.md`](train/romance_corpus/README.md). Next-phase plan: [`docs/PHASE5_STYLE_STEERING.md`](docs/PHASE5_STYLE_STEERING.md).
+
+**Training on Spark only:**
+
+```bash
+cd ~/git_repos/romance-training/train
+hf auth login   # Gemma license accepted on Hugging Face
+./download_gemma4_spark.sh      # one-time ~50 GB prefetch
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml
+```
+
+**Inference on 3090:** After GGUF export, copy `gemma4_style_q4/` (or q5) to the Windows box and load in LM Studio (temp 1.0, top_p 0.95, top_k 64, thinking off for JSON). Optional Phase 2: `run_pipeline.py --pass both` against a small instruct model in LM Studio.
 
 ## How it works
 
@@ -16,7 +42,7 @@ source/Style-in-Fiction.pdf
                                   └─[Phase 1C]─▶ source/style_rubric.json   (Leech & Short taxonomy)
                                                   └─[Phase 2]─▶ gutenberg_styled.jsonl   (sentence-aware chunks + style_profile)
                                                                   └─[Phase 3]─▶ style_training/train.jsonl
-                                                                                  └─[Phase 4]─▶ mistral_style_lora/
+                                                                                  └─[Phase 4 on Spark]─▶ gemma4_style_lora/ + GGUF
 ```
 
 ## Layout
@@ -51,7 +77,10 @@ tools/
 
 train/
 ├── train_qwen_unsloth.py         # LoRA + GGUF export via Unsloth (model set by config)
-├── train_config.toml             # Active config → Mistral-Nemo 12B
+├── run_phase4_docker.sh          # Spark: Unsloth dgxspark Docker wrapper
+├── download_gemma4_spark.sh      # Prefetch Gemma 4 QAT HF weights on Spark
+├── train_config.toml             # Mistral-Nemo 12B (paused at checkpoint-1750)
+├── train_config.gemma4_spark.toml  # Active Spark config → Gemma 4 26B-A4B QAT
 ├── train_config.example.toml     # Template — copy and adjust
 ├── tests/
 │   └── test_style_fidelity.py    # Chunking + knowledge retrieval unit tests
@@ -63,11 +92,11 @@ train/
     └── validation.jsonl
 ```
 
-## Fresh clone on a GPU machine (RTX 3090)
+## Fresh clone — data prep (3090 or any workstation)
 
-After `git pull`, HF datasets are **not** in the repo — download and convert them locally, then run Phases 2–4. Phase 1 rubric/knowledge **is** already committed (`source/style_rubric.json`, `source/extracted/style_knowledge.jsonl`).
+After `git pull`, HF datasets are **not** in the repo — download and convert them, then run Phase 2 labeling. Phase 1 rubric/knowledge **is** already committed (`source/style_rubric.json`, `source/extracted/style_knowledge.jsonl`).
 
-**Full step-by-step:** [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) — HF auth, recommended corpora (Korshuk + Gothic + 32K blurbs), resumable multi-day classification, merge, train.
+**Full step-by-step:** [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) — HF auth, corpora, resumable Phase 2, then **hand off to Spark for Phase 4**.
 
 ```bash
 hf auth login
@@ -78,14 +107,20 @@ python tools/style_classification/run_pipeline.py \
   --output train/romance_corpus/korshuk_styled.jsonl
 ```
 
+Push styled JSONL to Spark before training (see `train/romance_corpus/README.md`).
+
 ## Setup
 
-Python **3.12** recommended. CUDA GPU required for training (tested on RTX 3090, 24 GB).
+Python **3.12** recommended.
+
+- **Training:** DGX Spark (`spark-4f07`) — Unsloth `dgxspark` Docker via `train/run_phase4_docker.sh` (~128 GB unified memory).
+- **Inference / Phase 2:** RTX 3090 (24 GB) is enough for quantized GGUFs in LM Studio and optional classification; it is **not** the training host.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 
 pip install -r requirements-train.txt
+# Unsloth for local tooling only — Phase 4 training uses the Spark Docker image
 pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 
 # spaCy model for computable metrics
@@ -94,12 +129,15 @@ python -m spacy download en_core_web_sm
 
 Full dependency map → `REQUIREMENTS.md`.
 
-Copy training config before Phase 4:
+Active Phase 4 config on Spark (do not rely on the 3090-era Mistral example for new runs):
 
 ```bash
-cp train/train_config.example.toml train/train_config.toml
+# On spark-4f07:
+cd ~/git_repos/romance-training/train
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml
 ```
 
+Legacy Mistral template (paused): `cp train/train_config.example.toml train/train_config.toml`
 Place the Leech & Short PDF where Phase 1 expects it (a copy ships in `style-guide/`):
 
 ```bash
@@ -295,20 +333,37 @@ Two task types per record:
 - **classification** — "Classify this passage" → JSON style profile
 - **judgment** — "Analyze the [dimension]" → natural language explanation
 
-## Phase 4 — Fine-tune
+## Phase 4 — Fine-tune (**DGX Spark only**)
 
-Mistral-Nemo 12B with QLoRA rank 32 — fits on a single RTX 3090 in 4-bit.
+**Host:** `spark-4f07` (~128 GB unified Blackwell + CUDA). Do **not** fine-tune on the RTX 3090.
+
+**Active target:** Gemma 4 26B-A4B QAT with 16-bit LoRA — train from HF weights, export GGUF for LM Studio on the 3090.
 
 ```bash
-python train/train_qwen_unsloth.py
+cd train
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml
 ```
 
-Config is already pointed at `train/style_training/` and `mistralai/Mistral-Nemo-Instruct-2407`. Outputs a LoRA adapter + three GGUF quantizations (F16, Q5, Q4).
+Config: `train/train_config.gemma4_spark.toml` → local QAT weights under `~/.cache/huggingface/gemma-4-26B-A4B-it-qat-q4_0-unquantized`. Outputs LoRA adapter + GGUF quantizations under `gemma4_style_*`. Deploy the Q4 GGUF in LM Studio on the 3090 (match settings from the [QAT model card](https://huggingface.co/unsloth/gemma-4-26B-A4B-it-qat-GGUF): temp 1.0, top_p 0.95, top_k 64, thinking off for JSON tasks).
 
-To override the model without editing config:
+Resume or export-only:
 
 ```bash
-ROMANCE_BASE_MODEL=mistralai/Mistral-Nemo-Instruct-2407 python train/train_qwen_unsloth.py
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml --resume
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml --export-only
+```
+
+**Legacy (paused on Spark):** Mistral-Nemo 12B QLoRA — checkpoint at step 1750 in `mistral_style_lora/`. Resume with `train_config.toml` **on Spark**, not the 3090:
+
+```bash
+./run_phase4_docker.sh --config train_config.toml --resume
+```
+
+Override model without editing config:
+
+```bash
+ROMANCE_BASE_MODEL=unsloth/gemma-4-26B-A4B-it-qat-q4_0-unquantized \
+  ./run_phase4_docker.sh --config train_config.gemma4_spark.toml
 ```
 
 ## Testing

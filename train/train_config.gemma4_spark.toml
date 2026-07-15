@@ -1,0 +1,66 @@
+# Phase 4 — Gemma 4 26B-A4B QAT on DGX Spark (Unsloth dgxspark image)
+#
+# Active training config (Jul 2026) for spark-4f07 (~128 GB unified Blackwell + CUDA).
+# Do NOT train on the RTX 3090 — that box is for quantized GGUF inference (LM Studio) only.
+# Mistral-Nemo run paused at checkpoint-1750 (legacy; resume on Spark if needed).
+#
+# Train from HF QAT weights (not GGUF). After training, export GGUF for LM Studio on the 3090.
+# Deployment GGUF family: unsloth/gemma-4-26B-A4B-it-qat-GGUF (UD-Q4_K_XL ~14 GB)
+#
+# Prerequisites on Spark:
+#   hf auth login
+#   ./download_gemma4_spark.sh
+#   train/style_training/train.jsonl + validation.jsonl present
+#   Unload any inference servers that pin large unified memory before launch
+#
+# Run (on spark-4f07 only):
+#   ./run_phase4_docker.sh --config train_config.gemma4_spark.toml
+#   ./run_phase4_docker.sh --config train_config.gemma4_spark.toml --resume
+#
+# Memory profile (GB10 ~128 GiB unified): 16-bit MoE weights ~52 GiB; batch/GA
+# sized for Spark (larger than historical 24 GB QLoRA defaults). OOM fallback ladder
+# (keep effective batch 16): batch 8 / GA 2 → 4 / 4 → 2 / 8.
+
+[model]
+# Prefetched on Spark via download_gemma4_spark.sh (HF hub id alone would re-download).
+# HF parent of the QAT GGUF; do not point training at the -qat-GGUF repo.
+base = "/home/okita/.cache/huggingface/gemma-4-26B-A4B-it-qat-q4_0-unquantized"
+family = "gemma4"
+# Match SFT length (Unsloth MoE 16-bit example); do not reserve 8k unused context.
+max_seq_length = 2048
+load_in_4bit = false
+load_in_16bit = true
+# Non-thinking template for style classification / JSON SFT
+chat_template = "gemma-4"
+
+[lora]
+rank = 16
+alpha = 16
+# MoE: Unsloth finetune_* flags (text-only; vision encoder frozen)
+text_only = true
+
+[training]
+# Speed-first on Spark: 4x microbatch vs prior batch=2/GA=8; same effective batch.
+batch_size = 8
+grad_accumulation_steps = 2
+# effective batch = 16
+max_steps = 3000
+learning_rate = 2.0e-4
+sft_max_seq_length = 2048
+warmup_steps = 50
+logging_steps = 25
+# Remaining milestones from resume past step 1000: checkpoints + evals at 2000 and 3000.
+# (Full val is multi-hour on Spark; keep save/eval aligned for load_best_model_at_end.)
+save_steps = 1000
+eval_steps = 1000
+eval_batch_size = 8
+report_to = "cli"
+
+[paths]
+data_dir = "style_training"
+output_dir = "gemma4_style_lora"
+
+[export]
+f16_dir = "gemma4_style_f16"
+q5_dir = "gemma4_style_q5"
+q4_dir = "gemma4_style_q4"

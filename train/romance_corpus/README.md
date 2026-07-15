@@ -34,11 +34,14 @@ Phase 3 reads styled JSONL from here (or from `build-batch` combined output unde
 `manage.py build-batch`; manual `cat` below includes every `*_styled_seg_*.jsonl`
 in this directory regardless.
 
-## Sync to DGX Spark
+## Sync to DGX Spark (`spark-4f07` — training host)
 
-These JSONL files are gitignored — copy them to the Spark after Phase 2 runs on
-Windows. Requires NVIDIA Sync with a working SSH alias (here: `okita-pc` →
-`10.0.1.4`) and a hosts entry if mDNS does not resolve `spark-4f07.local`:
+These JSONL files are gitignored — copy them to Spark after Phase 2 (often run on
+the Windows RTX 3090 with LM Studio). **Phase 4 LoRA training runs only on Spark**
+(~128 GB unified Blackwell + CUDA); the 3090 loads exported quantized GGUFs later.
+
+Requires SSH to `spark-4f07` / `10.0.1.4` (NVIDIA Sync alias `okita-pc` may map here)
+and a hosts entry if mDNS does not resolve `spark-4f07.local`:
 
 ```
 10.0.1.4 spark-4f07.local spark-4f07

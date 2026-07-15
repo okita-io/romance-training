@@ -1,6 +1,8 @@
-# GPU machine runbook (RTX 3090)
+# GPU machine runbook (RTX 3090 — inference & data prep)
 
-Fresh-clone checklist for the PC that downloads HF corpora, runs multi-day Phase 2 classification, and fine-tunes Mistral-Nemo 12B.
+Fresh-clone checklist for the **Windows RTX 3090** box: download HF corpora, run multi-day Phase 2 classification, and **run quantized finished models in LM Studio**.
+
+**Training (Phase 4+) is not done here.** Fine-tuning runs on **DGX Spark (`spark-4f07`, ~128 GB unified Blackwell + CUDA)** — see README § Machine setup and `train/run_phase4_docker.sh` with `train_config.gemma4_spark.toml`.
 
 ## What ships in git vs what you download
 
@@ -9,8 +11,8 @@ Fresh-clone checklist for the PC that downloads HF corpora, runs multi-day Phase
 | `source/style_rubric.json` (v2) | `source-data/hf/` — raw HF datasets |
 | `source/extracted/style_knowledge.jsonl` | `source-data/processed/` — chunked JSONL |
 | `source/Style-in-Fiction.parsed.md` | `train/romance_corpus/*_styled.jsonl` — Phase 2 output |
-| `source-data/manifests/*.json` | `train/style_training/` — Phase 3 output |
-| All `tools/` scripts | `mistral_style_lora/` — Phase 4 adapter |
+| `source-data/manifests/*.json` | `train/style_training/` — Phase 3 output (often built on Spark) |
+| All `tools/` scripts | Exported GGUFs copied from Spark for LM Studio (`gemma4_style_q4/`, etc.) |
 
 **Phase 1 is already done** in the repo (parsed manuscript → rubric + knowledge base). You do not need to re-run vision PDF transcription unless you are changing the rubric.
 
@@ -26,13 +28,12 @@ python3.12 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 pip install -r requirements-train.txt
+# Unsloth optional for local tooling — Phase 4 training uses Spark Docker, not this venv
 pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 python -m spacy download en_core_web_sm
-
-cp train/train_config.example.toml train/train_config.toml
 ```
 
-Verify CUDA is visible to PyTorch (after Unsloth install):
+Verify CUDA is visible if you use local PyTorch tooling:
 
 ```bash
 python -c "import torch; print(torch.cuda.get_device_name(0))"
@@ -137,7 +138,7 @@ PYTHONPATH=. python -m pytest train/tests/test_language_filter.py \
 
 ## 5. LLM backend for Phase 2 (classification)
 
-Phase 2 with full semantic labels needs an OpenAI-compatible server. The 3090 can host this locally while training runs later on the same GPU — typically run classification first, then fine-tune.
+Phase 2 with full semantic labels needs an OpenAI-compatible server. On the 3090, host this in **LM Studio** (quantized instruct model). Keep VRAM free for inference — **do not** start Phase 4 fine-tuning on this GPU; training belongs on `spark-4f07`.
 
 **LM Studio** (default, port 1234):
 
@@ -222,26 +223,35 @@ Output: `train/style_training/train.jsonl` + `validation.jsonl`
 
 ---
 
-## 8. Phase 4 — Fine-tune on RTX 3090
+## 8. Hand off to DGX Spark for Phase 4 (training)
 
-Mistral-Nemo 12B, QLoRA rank 32, 4-bit — fits 24 GB VRAM.
-
-```bash
-python train/train_qwen_unsloth.py
-```
-
-Config: `train/train_config.toml` (copy from `train_config.example.toml` if missing).
-
-Outputs:
-
-- LoRA adapter → `mistral_style_lora/`
-- GGUF exports → `mistral_style_f16/`, `mistral_style_q5/`, `mistral_style_q4/`
-
-Override model without editing config:
+**Do not fine-tune on the RTX 3090.** Sync styled / Phase 3 JSONL to Spark, then train there.
 
 ```bash
-ROMANCE_BASE_MODEL=mistralai/Mistral-Nemo-Instruct-2407 python train/train_qwen_unsloth.py
+# Example: push styled segments to spark-4f07
+scp train/romance_corpus/*_styled_seg_*.jsonl \
+  okita@spark-4f07:~/git_repos/romance-training/train/romance_corpus/
 ```
+
+On **spark-4f07**:
+
+```bash
+cd ~/git_repos/romance-training/train
+# merge + Phase 3 if not already done
+./run_phase4_docker.sh --config train_config.gemma4_spark.toml
+```
+
+Active config: `train/train_config.gemma4_spark.toml` (Gemma 4 26B-A4B QAT, ~128 GB unified memory).
+
+After export, copy GGUFs back to the 3090 for LM Studio:
+
+- `gemma4_style_q4/` — recommended for day-to-day eval
+- `gemma4_style_q5/` — higher fidelity
+- `gemma4_style_f16/` — large; optional
+
+Legacy Mistral-Nemo (`train_config.toml`, checkpoint-1750) is paused; if resumed, resume **on Spark** only.
+
+See also: [`PHASE5_STYLE_STEERING.md`](PHASE5_STYLE_STEERING.md).
 
 ---
 
@@ -249,14 +259,15 @@ ROMANCE_BASE_MODEL=mistralai/Mistral-Nemo-Instruct-2407 python train/train_qwen_
 
 ```
 git pull
-  → pip install + spacy + unsloth
+  → pip install + spacy (+ optional unsloth for local tools)
   → hf auth login (+ accept gated dataset terms)
   → download_hf_dataset.py (×3 recommended)
   → convert_* / split_romance_parquet.py --chunk
-  → run_pipeline.py (per corpus, resumable)
-  → cat *_styled_seg_*.jsonl → train/style_training/combined_styled.jsonl
-  → generate_instruction_pairs.py
-  → train_qwen_unsloth.py
+  → run_pipeline.py (per corpus, resumable)   # 3090 / LM Studio OK
+  → scp styled JSONL → spark-4f07
+  → on Spark: cat → combined_styled.jsonl → generate_instruction_pairs.py
+  → on Spark: ./run_phase4_docker.sh --config train_config.gemma4_spark.toml
+  → copy gemma4_style_q4/*.gguf → 3090 LM Studio
 ```
 
 Phase 1 rubric/knowledge: **already in repo** — skip unless regenerating:
@@ -276,10 +287,10 @@ python tools/style_extraction/distill_style_system.py --force
 | HF: 32K parquet | ~50 MB |
 | Processed chunks (all three) | ~500 MB–1 GB |
 | Styled JSONL (full LLM, ~193k records) | ~2–4 GB |
-| Mistral-Nemo 12B download (first train) | ~24 GB |
-| LoRA + GGUF exports | ~10–20 GB |
+| Exported Gemma Q4 GGUF (from Spark) | ~14–17 GB |
+| Exported Gemma Q5 GGUF (optional) | ~19 GB |
 
-Plan **~50 GB free** for a comfortable first run.
+Plan **~40 GB free** on the 3090 for corpora + one quantized GGUF. Training weights live on Spark (~50 GB+ for Gemma QAT base + checkpoints).
 
 ---
 
