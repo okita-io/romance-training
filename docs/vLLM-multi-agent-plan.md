@@ -5,6 +5,8 @@ Implementation reference for running **vLLM** on **NVIDIA DGX Spark** with **Gem
 **Status:** planning / not yet deployed  
 **Last updated:** 2026-07-05
 
+**Rollout checklist (both machines):** [vLLM-setup.md](vLLM-setup.md)
+
 ---
 
 ## Goal

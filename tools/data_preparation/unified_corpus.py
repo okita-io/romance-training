@@ -61,6 +61,13 @@ def normalize_prose_text(
 ) -> str:
     """Normalize line endings, reflow OCR wraps, and strip leading front matter."""
     text = normalize_whitespace(text)
+    # Always strip Tekken/Mistral control spellings — HF encodes "<SPECIAL_N>" as
+    # that special token id, which then leaks into fine-tuned generations.
+    from tools.data_preparation.strip_tokenizer_control_strings import (
+        strip_tokenizer_control_strings,
+    )
+
+    text = strip_tokenizer_control_strings(text).text
     if reflow_ocr:
         from tools.data_preparation.reflow_prose import reflow_ocr_prose
 

@@ -2,7 +2,7 @@
 
 Reference for **romance-factory** (sibling repo) and this repo’s **`tools/llm_client.py`** when swapping models (Mistral, Gemma, Qwen, Llama 3 fine-tunes, community merges).
 
-**Related:** [GPU_RUNBOOK.md](GPU_RUNBOOK.md) (3090 inference / Phase 2 + LM Studio) · [vLLM-multi-agent-plan.md](vLLM-multi-agent-plan.md) (DGX Spark serving) · [PHASE5_STYLE_STEERING.md](PHASE5_STYLE_STEERING.md) (Phases 5–6: evaluator → novel merge)
+**Related:** [GPU_RUNBOOK.md](GPU_RUNBOOK.md) (3090 inference / Phase 2 + LM Studio) · [vLLM-setup.md](vLLM-setup.md) (3090 + Spark rollout checklist) · [vLLM-multi-agent-plan.md](vLLM-multi-agent-plan.md) (DGX Spark deep reference) · [PHASE5_STYLE_STEERING.md](PHASE5_STYLE_STEERING.md) (Phases 5–6: evaluator → novel merge)
 
 **Training host:** Phase 4+ LoRA fine-tuning runs on **DGX Spark (`spark-4f07`)**. The RTX 3090 loads **quantized GGUFs** only.
 

@@ -32,6 +32,7 @@ train/staging/
 train/incremental/ledger.json
 train/incremental/segments/
 train/incremental/batches/
+train/vllm/models/
 data/corpus/
 
 # Secrets

@@ -603,6 +603,29 @@ else:
             formatted.append(_format_instruction_example(record, tokenizer))
         return formatted
 
+    # Drop Tekken control spellings so SFT never learns to emit <SPECIAL_N> / [INST] as text.
+    try:
+        from tools.data_preparation.strip_tokenizer_control_strings import (
+            strip_tokenizer_control_strings,
+        )
+    except ImportError:
+        sys.path.insert(0, str(_REPO_ROOT.parent))
+        from tools.data_preparation.strip_tokenizer_control_strings import (
+            strip_tokenizer_control_strings,
+        )
+
+    _TEXT_KEYS = ("instruction", "input", "output", "text")
+
+    def _sanitize_row(row: dict) -> dict:
+        out = dict(row)
+        for key in _TEXT_KEYS:
+            val = out.get(key)
+            if isinstance(val, str) and val:
+                out[key] = strip_tokenizer_control_strings(val).text
+        return out
+
+    dataset = dataset.map(_sanitize_row, desc="Stripping tokenizer control strings")
+
     # 4. Setup trainer
     print("[4/6] Setting up trainer...")
     if USE_CLI_CHARTS:

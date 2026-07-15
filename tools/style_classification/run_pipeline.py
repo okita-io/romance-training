@@ -132,10 +132,17 @@ def _chunk_record(record: dict) -> list[dict]:
 
 
 def _record_key(record: dict) -> str:
+    """Stable resume identity for a chunk.
+
+    Must match saved rows: ``_enrich`` runs ``normalize_prose_text`` before write,
+    so the signature is taken from normalized text (otherwise resume misses work).
+    """
+    from tools.data_preparation.unified_corpus import normalize_prose_text
+
     m = record.get("metadata", {})
     source = m.get("source", record.get("source", ""))
     chunk = m.get("chunk_index", 0)
-    text_sig = record.get("text", "")[:60]
+    text_sig = normalize_prose_text(record.get("text", "") or "")[:60]
     return f"{source}|{chunk}|{text_sig}"
 
 
@@ -264,12 +271,17 @@ def _merge_output_from_disk(
     by_key: dict[str, dict],
     order: list[str],
 ) -> tuple[int, int]:
-    """Merge latest on-disk output before rewrite; protects against stale compaction."""
+    """Merge on-disk rows missing from memory before compact rewrite.
+
+    Keep in-memory values when a key already exists (this session's results win).
+    Only add keys that exist on disk but not in memory (e.g. prior-run rows).
+    """
     disk_index, disk_order = _load_output_index(path)
     before = len(order)
     for key in disk_order:
-        if key not in by_key:
-            order.append(key)
+        if key in by_key:
+            continue
+        order.append(key)
         by_key[key] = disk_index[key]
     return before, len(order)
 

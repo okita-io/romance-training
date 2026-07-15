@@ -317,6 +317,8 @@ def generate(
 
     all_pairs: list[dict] = []
 
+    from tools.data_preparation.unified_corpus import normalize_prose_text
+
     for i, record in enumerate(styled):
         text = record.get("text", "")
         profile: dict = record.get("metadata", {}).get("style_profile", {})
@@ -324,6 +326,9 @@ def generate(
 
         if not text or not profile:
             continue
+
+        # Re-normalize so Tekken control spellings / leftover HTML never enter SFT.
+        text = normalize_prose_text(text)
 
         # --- Classification pair ---
         all_pairs.append({

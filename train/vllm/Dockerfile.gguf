@@ -1,0 +1,2 @@
+FROM vllm/vllm-openai:latest
+RUN python3 -m pip install --no-cache-dir "vllm-gguf-plugin==0.0.3"
