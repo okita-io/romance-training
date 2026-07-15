@@ -20,7 +20,9 @@ The trained model can:
 - **Spark:** Active Phase 4 — **Gemma 4 26B-A4B QAT** via `train/train_config.gemma4_spark.toml`. Mistral-Nemo 12B LoRA paused at **checkpoint-1750** (`train/mistral_style_lora/`).
 - **3090:** LM Studio for classification helpers and (after export) quantized Gemma evaluator GGUFs. Do **not** run Phase 4 training here.
 
-**Data flow:** Styled `*_styled_seg_*.jsonl` (often labeled on the 3090) → `scp` to Spark (`train/romance_corpus/`) → merge + Phase 3 on Spark → **train on Spark**. See [`train/romance_corpus/README.md`](train/romance_corpus/README.md). Next-phase plan: [`docs/PHASE5_STYLE_STEERING.md`](docs/PHASE5_STYLE_STEERING.md).
+**Data flow:** Styled `*_styled_seg_*.jsonl` (often labeled on the 3090) → `scp` to Spark (`train/romance_corpus/`) → merge + Phase 3 on Spark → **train on Spark**. See [`train/romance_corpus/README.md`](train/romance_corpus/README.md).
+
+**North-star:** long-form fiction that holds a chosen voice, style, and tone across a full novel. Roadmap: [`docs/PHASE5_STYLE_STEERING.md`](docs/PHASE5_STYLE_STEERING.md) (Phases 5–6: evaluator → steering → bulk Gemma classify → novel merge).
 
 **Training on Spark only:**
 

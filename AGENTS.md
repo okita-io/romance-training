@@ -2,7 +2,7 @@
 
 **Style Classifier Training** — annotate prose with Leech & Short style metrics and fine-tune a prose style judge / classifier. **Active training target:** Gemma 4 26B-A4B QAT on DGX Spark.
 
-See `README.md` for the full pipeline, layout, and backlog. Phase 5 plan: `docs/PHASE5_STYLE_STEERING.md`.
+See `README.md` for the full pipeline, layout, and backlog. **North-star / Phases 5–6:** `docs/PHASE5_STYLE_STEERING.md` (style judge → steering → bulk Gemma classify → long-form novel merge).
 
 **Machine split:**
 - **DGX Spark (`spark-4f07`, ~128 GB unified Blackwell + CUDA)** — **all Phase 4+ LoRA training** and GGUF export.
