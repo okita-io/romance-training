@@ -97,6 +97,19 @@ def _ensure_windows_build_tools_on_path() -> None:
             break
 
 
+def _install_model_card(output_dir: str) -> None:
+    """Copy train/model_cards/<output_basename>.md over TRL/PEFT stub READMEs when present."""
+    import shutil
+
+    out = Path(output_dir)
+    card = _train_root / "model_cards" / f"{out.name}.md"
+    if not card.is_file():
+        return
+    dest = out / "README.md"
+    shutil.copy2(card, dest)
+    print(f"  Installed model card → {dest}")
+
+
 _ensure_windows_build_tools_on_path()
 
 import unsloth  # noqa: F401 — apply patches before other HF imports
@@ -692,6 +705,7 @@ print("\n[6/6] Saving and exporting models...")
 print("  Saving LoRA adapter...")
 model.save_pretrained(OUTPUT_DIR)
 tokenizer.save_pretrained(OUTPUT_DIR)
+_install_model_card(OUTPUT_DIR)
 
 # Export to GGUF (multiple quantizations)
 print("  Exporting to GGUF formats...")
