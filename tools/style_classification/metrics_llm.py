@@ -199,6 +199,72 @@ Passage:
 {text}"""
 
 
+def assess_detailed(
+    text: str,
+    model: str = DEFAULT_MODEL,
+    rubric: dict | None = None,
+    *,
+    pass_mode: PassMode = "full",
+    fields: frozenset[str] | None = None,
+    prior: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """
+    Like :func:`assess`, but also returns parse / error metadata.
+
+    Meta keys:
+      parse_ok: bool — True when the model returned usable JSON
+      used_defaults: bool — True when profile fell back to schema defaults
+      error: optional str
+    """
+    active_fields = fields if fields is not None else fields_for_pass(pass_mode)
+
+    words = text.split()
+    if len(words) > 1200:
+        text = " ".join(words[:1200]) + "…"
+
+    rubric_context = ""
+    if rubric is not None:
+        from tools.style_classification.style_knowledge import build_classification_context
+        rubric_context = build_classification_context(text, rubric=rubric, knowledge_k=2)
+    if not rubric_context.strip():
+        rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
+
+    defaults = _defaults(rubric, fields=active_fields)
+    max_tokens = 8192 if active_fields is None else 2048
+    meta: dict[str, Any] = {"parse_ok": False, "used_defaults": True, "error": None}
+
+    try:
+        raw = llm_complete(
+            _build_user_prompt(
+                text,
+                rubric,
+                rubric_context,
+                fields=active_fields,
+                prior=prior,
+            ),
+            system=_build_system_prompt(rubric),
+            model=model,
+            max_tokens=max_tokens,
+            temperature=0.05,
+        )
+    except LLMError as exc:
+        sys.stderr.write(f"  LLM metrics skipped: {exc}\n")
+        meta["error"] = str(exc)
+        return defaults, meta
+
+    result = _parse_json(raw)
+    if not result:
+        meta["error"] = "json_parse_failed"
+        return defaults, meta
+
+    merged = dict(defaults)
+    allowed = set(defaults) | {"evidence"}
+    merged.update({k: v for k, v in result.items() if k in allowed})
+    meta["parse_ok"] = True
+    meta["used_defaults"] = False
+    return merged, meta
+
+
 def assess(
     text: str,
     model: str = DEFAULT_MODEL,
@@ -218,48 +284,15 @@ def assess(
 
     Falls back to defaults on any connection error so the pipeline never stalls.
     """
-    active_fields = fields if fields is not None else fields_for_pass(pass_mode)
-
-    words = text.split()
-    if len(words) > 1200:
-        text = " ".join(words[:1200]) + "…"
-
-    rubric_context = ""
-    if rubric is not None:
-        from tools.style_classification.style_knowledge import build_classification_context
-        rubric_context = build_classification_context(text, rubric=rubric, knowledge_k=2)
-    if not rubric_context.strip():
-        rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
-
-    defaults = _defaults(rubric, fields=active_fields)
-    max_tokens = 8192 if active_fields is None else 2048
-
-    try:
-        raw = llm_complete(
-            _build_user_prompt(
-                text,
-                rubric,
-                rubric_context,
-                fields=active_fields,
-                prior=prior,
-            ),
-            system=_build_system_prompt(rubric),
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0.05,
-        )
-    except LLMError as exc:
-        sys.stderr.write(f"  LLM metrics skipped: {exc}\n")
-        return defaults
-
-    result = _parse_json(raw)
-    if not result:
-        return defaults
-
-    merged = dict(defaults)
-    allowed = set(defaults) | {"evidence"}
-    merged.update({k: v for k, v in result.items() if k in allowed})
-    return merged
+    profile, _meta = assess_detailed(
+        text,
+        model=model,
+        rubric=rubric,
+        pass_mode=pass_mode,
+        fields=fields,
+        prior=prior,
+    )
+    return profile
 
 
 def _parse_json(raw: str) -> dict | None:

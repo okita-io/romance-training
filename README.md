@@ -24,6 +24,8 @@ The trained model can:
 
 **North-star:** long-form fiction that holds a chosen voice, style, and tone across a full novel. Roadmap: [`docs/PHASE5_STYLE_STEERING.md`](docs/PHASE5_STYLE_STEERING.md) (Phases 5–6: evaluator → steering → bulk Gemma classify → novel merge).
 
+**MoE style editor (target):** train a multi-grain editor (sentence / span / act experts) on top of the judge stack — current system, gaps, and completion tracks: [`docs/MOE_STYLE_EDITOR.md`](docs/MOE_STYLE_EDITOR.md).
+
 **Training on Spark only:**
 
 ```bash

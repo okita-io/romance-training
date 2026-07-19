@@ -7,17 +7,16 @@
 
 ## Progress status
 
-**Last updated:** 2026-07-15 (Spark local)  
-**Current focus:** Finish Phase 4 Gemma training to **3000**, export GGUF, then **5A** bake-off.  
-**Blocked on:** Phase 4 completion + GGUF (no evaluator promotion until 5A passes).
+**Last updated:** 2026-07-17 (Spark local)  
+**Current focus:** Phase **5A** bake-off — Gemma GGUF as judge on the 3090.  
+**Blocked on:** GGUF download/load in LM Studio on the PC (3090); then run agree/reject.
 
 ### What's next (ordered)
 
-1. Let Phase 4 reach **3000** on `spark-4f07` (saves/evals aimed at 2000 & 3000 after the post-1250 resume).
-2. Confirm **Q4/Q5 GGUF** under `gemma4_style_q4/` / `gemma4_style_q5/` (native export or `--export-only`).
-3. Copy GGUF to the 3090 → run **Phase 5A** agreement bake-off.
-4. If 5A is green → **5B** steering cards **and** kick off **6A** bulk Gemma classification on a pilot corpus.
-5. Single-chapter **6C** pilot → aim at **6D** novel merge (north-star checkpoint).
+1. Finish Hugging Face GGUF download on the PC → load **Q4** (or Q5) in LM Studio (temp 1.0, top_p 0.95, top_k 64, thinking **off**).
+2. Point `LLM_BASE_URL` / `LLM_MODEL` at that endpoint and run `python3 tools/style_evaluation/bakeoff_5a.py run`.
+3. Read go/no-go from `*.summary.json`. If green → **5B** steering cards **and** kick off **6A** bulk Gemma classification on a pilot corpus.
+4. Single-chapter **6C** pilot → aim at **6D** novel merge (north-star checkpoint).
 
 ### Checklist
 
@@ -28,11 +27,12 @@
 | — | Active config `train_config.gemma4_spark.toml` + Docker Gemma overlay | **Done** |
 | — | Style training JSONL present (`style_training/`, ~430k train pairs) | **Done** |
 | 4 | Gemma 4 LoRA training started on Spark | **Done** |
-| 4 | Checkpoints through **1250** (also 250/500/750/1000) | **Done** |
+| 4 | Checkpoints through **2750** (250…2750) | **Done** |
 | 4 | Resume with less-frequent eval (milestones 2000 / 3000) | **Done** |
-| 4 | Training → **3000** steps | **In progress** (~1500; mid-eval as of last check) |
-| 4 | GGUF export (f16 / q5 / q4) for LM Studio | **Not started** |
-| 5A | Evaluator bake-off on 3090 | **Not started** |
+| 4 | Training → **3000** steps | **Done** |
+| 4 | GGUF export (f16 / q5 / q4) for LM Studio | **Done** (on Spark; HF download to PC in progress) |
+| 5A | Bake-off harness + fixed eval set (30 gold + 10 traps) | **Done** (`tools/style_evaluation/bakeoff_5a.py`, `eval/bakeoff_5a/`) |
+| 5A | Evaluator bake-off on 3090 | **In progress** (waiting on GGUF load in LM Studio) |
 | 5B | `steering_card` enrichment on styled corpus | **Not started** |
 | 5C | Passage-level writer ↔ evaluator loop | **Not started** |
 | 5D | Writer LoRA SFT on Spark | **Not started** |
@@ -47,7 +47,7 @@
 
 - Phase 1–3 pipeline exists (rubric, knowledge, styled corpora, instruction pairs).
 - Phase 4 target locked to **Gemma 4 26B-A4B QAT** on **spark-4f07** (~128 GB unified); 3090 reserved for quantized inference.
-- Training loss ~1.2; eval loss improved ~2.51 → ~2.43 by checkpoint-1250.
+- Train loss ~1.21; eval loss **2.51 → 2.38** by checkpoint-2750.
 - Post-training roadmap (judge → steer → bulk classify → novel merge) documented in this file.
 
 ### How to update this section
@@ -70,6 +70,8 @@ That means the stack has to do three jobs well:
 
 Phase 5 proves the **judge + steer** loop on passages.  
 Phase 6 uses a **trusted** judge to re-label at scale and to **merge** passage-level control into a **full long-form novel**.
+
+Longer-term productization of that loop as a **multi-grain MoE style editor** (sentence / span / act experts) — including how today’s training data feeds it, what is done, and what is still missing — is documented in [`MOE_STYLE_EDITOR.md`](MOE_STYLE_EDITOR.md).
 
 If a task doesn’t serve “consistent style across a book,” it’s secondary.
 

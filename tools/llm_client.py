@@ -41,8 +41,29 @@ def _load_repo_dotenv() -> None:
     try:
         from dotenv import load_dotenv
         load_dotenv(env_path)
+        return
     except ImportError:
         pass
+
+    # Minimal fallback when python-dotenv is not installed.
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        else:
+            # Unquoted inline comments: KEY=value # note
+            if " #" in value:
+                value = value.split(" #", 1)[0].rstrip()
+            elif "\t#" in value:
+                value = value.split("\t#", 1)[0].rstrip()
+        os.environ[key] = value
 
 
 _load_repo_dotenv()

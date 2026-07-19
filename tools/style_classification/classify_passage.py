@@ -39,6 +39,9 @@ def classify(
     llm_model: str | None = None,
     pass_mode: str = "full",
     prior_profile: dict[str, Any] | None = None,
+    llm_mode: str = "joint",
+    council_meta_out: dict[str, Any] | None = None,
+    council_arbitrate: bool = True,
 ) -> dict[str, Any]:
     """
     Return a full style_profile for the given text passage.
@@ -50,13 +53,25 @@ def classify(
         llm_model:      Ollama / LM Studio model name (defaults to LLM_MODEL env).
         pass_mode:      "full" | "fast" | "deep" | "both" — see source/multi-pass.md.
         prior_profile:  Existing style_profile for deep/both merge (pass 1 labels).
+        llm_mode:       "joint" (one JSON call per pass) or "council" (single-metric
+                        3-judge vote + arbitration per field).
+        council_meta_out: When provided and llm_mode="council", populated with the
+                        per-field vote breakdown (mutated in place).
+        council_arbitrate: When council, invoke the arbitrator on split votes
+                        (default True). False falls back to plain majority.
 
     Returns:
         Flat dict of all computed metrics.
     """
     from tools.llm_client import DEFAULT_MODEL
     from tools.style_classification.metrics_computable import compute
-    from tools.style_classification.pass_config import PASS1_LLM_FIELDS, PassMode, pass_complete
+    from tools.style_classification.pass_config import (
+        ALL_LLM_FIELDS,
+        PASS1_LLM_FIELDS,
+        PassMode,
+        fields_for_pass,
+        pass_complete,
+    )
 
     if llm_model is None:
         llm_model = DEFAULT_MODEL
@@ -79,26 +94,43 @@ def classify(
         except FileNotFoundError:
             rubric = None
 
+    council = llm_mode == "council"
+    if council:
+        from tools.style_classification.metric_council import assess_fields_council
+
+    def _get_llm(pass_key: PassMode, prior_fields: dict[str, Any] | None) -> dict[str, Any]:
+        """Fetch LLM fields for one pass via joint or council dispatch."""
+        if not council:
+            return assess(
+                text,
+                model=llm_model,
+                rubric=rubric,
+                pass_mode=pass_key,
+                prior=prior_fields if pass_key == "deep" else None,
+            )
+        fields = fields_for_pass(pass_key) or ALL_LLM_FIELDS
+        partial, meta = assess_fields_council(
+            text,
+            fields,
+            model=llm_model,
+            rubric=rubric,
+            prior=prior_fields,
+            arbitrate_split=council_arbitrate,
+        )
+        if council_meta_out is not None:
+            council_meta_out.update(meta)
+        return partial
+
     if mode == "both":
         if prior:
             profile.update({k: v for k, v in prior.items() if v is not None})
 
         if not pass_complete(profile, "fast"):
-            profile.update(
-                assess(text, model=llm_model, rubric=rubric, pass_mode="fast")
-            )
+            profile.update(_get_llm("fast", None))
 
         if not pass_complete(profile, "deep"):
             prior_for_deep = {k: profile[k] for k in PASS1_LLM_FIELDS if k in profile}
-            profile.update(
-                assess(
-                    text,
-                    model=llm_model,
-                    rubric=rubric,
-                    pass_mode="deep",
-                    prior=prior_for_deep,
-                )
-            )
+            profile.update(_get_llm("deep", prior_for_deep))
 
         if prior:
             profile.update({k: v for k, v in prior.items() if k in PASS1_LLM_FIELDS and v is not None})
@@ -107,13 +139,7 @@ def classify(
     if mode == "deep" and prior:
         profile.update({k: v for k, v in prior.items() if k not in profile})
 
-    llm_fields = assess(
-        text,
-        model=llm_model,
-        rubric=rubric,
-        pass_mode=mode,
-        prior=prior if mode == "deep" else None,
-    )
+    llm_fields = _get_llm(mode, prior if mode == "deep" else None)
     profile.update(llm_fields)
 
     if mode == "deep" and prior:
@@ -134,6 +160,20 @@ def _main() -> None:
         default="full",
         help="LLM pass mode (default: full). both = fast+deep field sets, same model",
     )
+    parser.add_argument(
+        "--llm-mode",
+        dest="llm_mode",
+        choices=("joint", "council"),
+        default="joint",
+        help="joint = one JSON call per pass; council = single-metric 3-judge vote per field",
+    )
+    parser.add_argument(
+        "--no-arbitrate",
+        dest="arbitrate",
+        action="store_false",
+        default=True,
+        help="Council only: skip the arbitrator on split votes (plain majority)",
+    )
     args = parser.parse_args()
 
     if args.file:
@@ -143,13 +183,19 @@ def _main() -> None:
 
     from tools.llm_client import DEFAULT_MODEL
 
+    council_meta: dict[str, Any] = {}
     profile = classify(
         text,
         use_llm=not args.no_llm,
         llm_model=args.model or DEFAULT_MODEL,
         pass_mode=args.pass_mode,
+        llm_mode=args.llm_mode,
+        council_meta_out=council_meta if args.llm_mode == "council" else None,
+        council_arbitrate=args.arbitrate,
     )
     print(json.dumps(profile, indent=2))
+    if council_meta:
+        print(json.dumps({"style_council": council_meta}, indent=2), file=sys.stderr)
 
 
 if __name__ == "__main__":

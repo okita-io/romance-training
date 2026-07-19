@@ -130,13 +130,51 @@ python tools/style_classification/run_pipeline.py \
 
 (`--pass fast|deep|both|full` is implemented in `run_pipeline.py` and `classify_passage.py`.)
 
+## `--llm-mode council` — single-metric teacher council
+
+Orthogonal to `--pass`. `--llm-mode` chooses **how** each LLM field is judged:
+
+| Mode | How | Calls / field | When |
+|------|-----|---------------|------|
+| `joint` (default) | One JSON call fills the whole pass schema | ~1 per pass | Bulk corpus runs |
+| `council` | Each metric judged alone by 3 prompt-variant "teachers", majority vote | 3 per field | High-reliability labeling / teacher data |
+
+The council keeps the same loaded model for all three judges — diversity comes from prompt **framing**, not weights (LM Studio serves one model at a time). Temperature stays low (0.05) so variance is driven by framing. The three framings are `definition` (apply the rubric definition strictly), `evidence` (strongest linguistic cue first), and `contrast` (rule out the nearest distractor).
+
+Voting: a label wins only with a clear majority (≥2 of 3 agreeing valid labels). Ties, all-invalid, or no-parse leave the field **unset** — no default label is invented, and resume can re-judge it on a later run. Consensus labels go into `metadata.style_profile` as usual; a compact audit trail (`{value, agree_n, consensus, votes}` per field) is written to `metadata.style_council`.
+
+`--pass` still selects which fields are filled (`fast`/`deep`/`both`/`full`); council only changes the judging method. Cost is ~3×(number of fields) calls per chunk, so use it for quality labeling rather than the whole corpus.
+
+```bash
+# Smoke: council-classify 5 chunks, pass-1 fields
+python tools/style_classification/run_pipeline.py \
+  --llm-mode council --pass fast --limit 5 --workers 1 \
+  --input source-data/processed/horror_novel_chunks/chunks.jsonl \
+  --output train/romance_corpus/council_smoke_styled.jsonl
+
+# Deep (hard) fields via council after a fast pass
+python tools/style_classification/run_pipeline.py \
+  --llm-mode council --pass deep --workers 1 \
+  --input source-data/processed/horror_novel_chunks/chunks.jsonl \
+  --output train/romance_corpus/horror_styled.jsonl
+```
+
+Single-passage debugging (`classify_passage.py --llm-mode council` prints the `style_council` vote map to stderr):
+
+```bash
+echo "Your passage here." | \
+  python tools/style_classification/classify_passage.py --llm-mode council --pass fast
+```
+
 ## What exists today
 
 | Component | Status |
 |-----------|--------|
 | `run_pipeline.py --workers N` | Parallel **chunks**, one model per run |
 | `run_pipeline.py --pass fast\|deep\|both\|full` | Two-pass + same-model both + single-shot modes |
+| `run_pipeline.py --llm-mode joint\|council` | Joint schema call vs single-metric 3-judge vote |
 | `metrics_llm.assess()` | Field-restricted requests + prior context |
+| `metric_council.assess_fields_council()` | Per-field 3-variant majority vote |
 | `metrics_computable.compute()` | Always runs first |
 | Resume | Per-pass field completion checks |
 | Multi-turn chat in `llm_client` | **Not implemented** (not needed for two-pass) |
@@ -183,7 +221,8 @@ Do **not** expect literal 10× end-to-end speedup: Pass 1 adds extra calls, and 
 
 ## Related files
 
-- `tools/style_classification/metrics_llm.py` — prompts and parsing
+- `tools/style_classification/metrics_llm.py` — joint prompts and parsing
+- `tools/style_classification/metric_council.py` — single-metric teacher council (`--llm-mode council`)
 - `tools/style_classification/run_pipeline.py` — bulk run and `--workers`
 - `tools/llm_client.py` — HTTP client (extend for multi-turn if needed)
 - `source/extracted/style_analysis_system.json` — canonical dimension list

@@ -293,6 +293,8 @@ def _enrich(
     llm_model: str,
     pass_mode: str,
     prior_profile: dict[str, Any] | None,
+    llm_mode: str = "joint",
+    council_arbitrate: bool = True,
 ) -> dict:
     text = record.get("text", "")
     from tools.data_preparation.unified_corpus import normalize_prose_text
@@ -304,6 +306,7 @@ def _enrich(
     try:
         from tools.style_classification.classify_passage import classify
 
+        council_meta: dict[str, Any] = {}
         profile = classify(
             text,
             rubric=rubric,
@@ -311,12 +314,19 @@ def _enrich(
             llm_model=llm_model,
             pass_mode=pass_mode,
             prior_profile=prior_profile,
+            llm_mode=llm_mode,
+            council_meta_out=council_meta if llm_mode == "council" else None,
+            council_arbitrate=council_arbitrate,
         )
         out = dict(record)
         out["text"] = text
         meta = dict(out.get("metadata", {}))
         meta["word_count"] = len(text.split())
         meta["style_profile"] = profile
+        if council_meta:
+            existing = dict(meta.get("style_council", {}))
+            existing.update(council_meta)
+            meta["style_council"] = existing
         out["metadata"] = meta
         return out
     except Exception as exc:
@@ -336,6 +346,8 @@ def run(
     seed: int = 42,
     quiet: bool = False,
     pass_mode: str = "full",
+    llm_mode: str = "joint",
+    council_arbitrate: bool = True,
     run_log_path: Path | None = None,
     run_log_enabled: bool = True,
 ) -> None:
@@ -360,6 +372,9 @@ def run(
         print("No rubric found — run extract_rubric.py first for best results")
 
     print(f"Pass mode: {pass_mode}")
+    if llm_mode == "council":
+        arb = "with arbitrator on split votes" if council_arbitrate else "majority only"
+        print(f"LLM mode: council (single-metric, 3-judge, {arb})")
     hint = suggested_workers(pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full")
     if use_llm and hint and workers == 1:
         print(f"Tip: --pass {pass_mode} often runs well with --workers {hint}")
@@ -412,6 +427,8 @@ def run(
             "input_path": _display_path(input_path),
             "output_path": _display_path(output_path),
             "pass_mode": pass_mode,
+            "llm_mode": llm_mode,
+            "council_arbitrate": council_arbitrate,
             "workers": workers,
             "use_llm": use_llm,
             "llm_model": llm_model,
@@ -483,6 +500,8 @@ def run(
             llm_model,
             pass_mode,
             prior,
+            llm_mode,
+            council_arbitrate,
         )
         _write_result(key, result)
 
@@ -653,6 +672,20 @@ def main() -> None:
         help="LLM pass: fast (pass 1 fields), deep (pass 2 fields), both (1+2 same model), full (all fields one call)",
     )
     parser.add_argument(
+        "--llm-mode",
+        dest="llm_mode",
+        choices=("joint", "council"),
+        default="joint",
+        help="joint (one JSON call per pass) or council (single-metric 3-judge vote per field; ~3x LLM calls, higher label reliability)",
+    )
+    parser.add_argument(
+        "--no-arbitrate",
+        dest="council_arbitrate",
+        action="store_false",
+        default=True,
+        help="Council only: skip the arbitrator on split votes (plain majority)",
+    )
+    parser.add_argument(
         "--workers",
         type=int,
         default=1,
@@ -707,6 +740,8 @@ def main() -> None:
         seed=args.seed,
         quiet=args.quiet,
         pass_mode=args.pass_mode,
+        llm_mode=args.llm_mode,
+        council_arbitrate=args.council_arbitrate,
         run_log_path=args.run_log,
         run_log_enabled=not args.no_run_log,
     )
