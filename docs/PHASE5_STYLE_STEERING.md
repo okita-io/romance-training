@@ -71,7 +71,12 @@ That means the stack has to do three jobs well:
 Phase 5 proves the **judge + steer** loop on passages.  
 Phase 6 uses a **trusted** judge to re-label at scale and to **merge** passage-level control into a **full long-form novel**.
 
-Longer-term productization of that loop as a **multi-grain MoE style editor** (sentence / span / act experts) — including how today’s training data feeds it, what is done, and what is still missing — is documented in [`MOE_STYLE_EDITOR.md`](MOE_STYLE_EDITOR.md).
+Longer-term productization of that loop yields **two co-equal MoE products**, both built on the same base family:
+
+- **[MoE style editor](MOE_STYLE_EDITOR.md)** — grades and rewrites style at sentence / span / act grain (the writer's critic).
+- **[MoE style writer](MOE_WRITER.md)** — a **card-conditioned generator** with swappable voice/genre LoRA adapters that writes on-card prose, coached by the editor and refereed by the judge. This re-elevates the project's original "train a writer" goal (currently latent in 5C/5D/6C) to a first-class deliverable.
+
+**Judge / editor / writer are separate training products** — never cross-train, and keep the referee judge held out from the writer's reward loop.
 
 If a task doesn’t serve “consistent style across a book,” it’s secondary.
 

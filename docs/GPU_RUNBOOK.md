@@ -251,7 +251,7 @@ After export, copy GGUFs back to the 3090 for LM Studio:
 
 Legacy Mistral-Nemo (`train_config.toml`, checkpoint-1750) is paused; if resumed, resume **on Spark** only.
 
-See also: [`PHASE5_STYLE_STEERING.md`](PHASE5_STYLE_STEERING.md).
+See also: [`PHASE5_STYLE_STEERING.md`](PHASE5_STYLE_STEERING.md) (judge → steering → novel) and [`MOE_STYLE_EDITOR.md`](MOE_STYLE_EDITOR.md) (multi-grain editor productization target).
 
 ---
 
@@ -304,6 +304,6 @@ Plan **~40 GB free** on the 3090 for corpora + one quantized GGUF. Training weig
 | LLM connection refused | Start LM Studio server or Ollama; check `LLM_BASE_URL` |
 | Phase 2 seems stuck | Normal for LLM mode — check progress lines every 100 records |
 | Want to restart Phase 2 clean | Add `--no-resume` to delete output and start over |
-| CUDA OOM during training | Lower `batch_size` in `train_config.toml` (try 1) |
+| CUDA OOM during training | Lower `batch_size` in `train_config.gemma4_spark.toml` (try 1) — training is on Spark, not the 3090 |
 
 More detail: `README.md`, `source-data/README.md`, `AGENTS.md`.

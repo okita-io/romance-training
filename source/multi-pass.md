@@ -166,6 +166,12 @@ echo "Your passage here." | \
   python tools/style_classification/classify_passage.py --llm-mode council --pass fast
 ```
 
+### Editor-grade labeling (span-editor teacher)
+
+For **MoE style editor** training data (see [`../docs/MOE_STYLE_EDITOR.md`](../docs/MOE_STYLE_EDITOR.md), Track A), `--llm-mode council` is the **primary span teacher**. Prefer unanimous or arbitrated-with-rationale labels over `joint` single-pass labels, which over-smooth the hard fields (`mind_style`, `free_indirect_discourse`, `register`) that the editor most needs to grade and rewrite.
+
+The span editor also wants **~250–350w** spans rather than the current 500w default (`CHUNK_WORDS` in `run_pipeline.py`) — pilots show halves of a 500w parent often carry different local tone/mind-style. Shortening spans needs a chunk-size flag (see MoE doc G3/Track A). Keep the judge and editor as separate training products; version every label set (`style_profile_version`).
+
 ## What exists today
 
 | Component | Status |

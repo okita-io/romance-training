@@ -4,6 +4,12 @@
 
 See `README.md` for the full pipeline, layout, and backlog. **North-star / Phases 5–6:** `docs/PHASE5_STYLE_STEERING.md` (style judge → steering → bulk Gemma classify → long-form novel merge).
 
+**MoE productization targets (two co-equal products):**
+- `docs/MOE_STYLE_EDITOR.md` — three-grain **editor** (sentence / span / act experts) that grades and rewrites style; **span (~250–350w) + council** is the primary teacher for editor-grade labels.
+- `docs/MOE_WRITER.md` — card-conditioned MoE **writer** with swappable voice/genre LoRA adapters (genre = adapter, rubric knobs = card); the editor is its critic, the judge its independent referee.
+
+Keep the **judge, editor, and writer as separate training products** — never overwrite one checkpoint with another's data, and keep the referee judge held out from the writer's reward loop.
+
 **Machine split:**
 - **DGX Spark (`spark-4f07`, ~128 GB unified Blackwell + CUDA)** — **all Phase 4+ LoRA training** and GGUF export.
 - **RTX 3090 (24 GB) + LM Studio** — **inference only** (quantized finished GGUFs), optional Phase 2 labeling. Do **not** fine-tune here.

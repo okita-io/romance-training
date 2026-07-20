@@ -285,6 +285,109 @@ LLM_DISABLE_THINKING=1    # Qwen3 / Gemma 4 prose + JSON tasks
 
 ---
 
+## Candidate models by task (role → model)
+
+The pipeline is **multi-role**, and no single model is best at every role. Rather than one global `LLM_MODEL`, think in terms of the job:
+
+| Role | Where | Wants | Good candidates |
+|------|-------|-------|-----------------|
+| **Vision transcription** (Phase 1A) | `pdf_vision_harness.py` | Image input, clean markdown, low reasoning leakage | Qwen3.x-VL, Gemma-4 VL checkpoints, other multimodal instruct |
+| **Fast classify** (Phase 2 `--pass fast`) | `run_pipeline.py` | Cheap, ~4 parallel workers, stable on easy fields | Ministral 3B, Qwen3-4B, small instruct |
+| **Deep classify** (Phase 2 `--pass deep`) | `run_pipeline.py` | Holistic read for tone / POV / FID; high tok/s | Qwen3-30B-A3B (MoE), Gemma-4-26B-A4B (MoE) |
+| **Council teacher** (`--llm-mode council`) | `metric_council.py` | Steerable, low refusal, follows rubric framing | Hermes 4 14B, Nous-Hermes-2-Mixtral-8x7B, Qwen3-30B-A3B |
+| **Style judge / bake-off** (Phase 5A) | `bakeoff_5a.py` | The trained evaluator itself | Gemma 4 26B-A4B style LoRA GGUF (Q4/Q5) |
+| **Editor experts** (MoE editor, future) | Track D of [`MOE_STYLE_EDITOR.md`](MOE_STYLE_EDITOR.md) | Rewrite + grade at sentence/span/act grain | Gemma 4 MoE base (+ role LoRAs) |
+
+### MoE for high throughput at low memory
+
+MoE models activate only a few experts per token, so decode is **bandwidth-cheap** — high tok/s for their size. That is why they suit a 24 GB RTX 3090 or a unified-memory Mac Mini/Studio as flexible local hosts. Two caveats worth stating plainly:
+
+- **"Few active params" ≠ "small footprint."** All experts still occupy memory. A small-active MoE like **Gemma-4-26B-A4B** (3.8B active / ~25B total, ~15 GB at Q4) fits a 24 GB 3090; **Nous-Hermes-2-Mixtral-8x7B** (~13B active / ~47B total, ~26 GB at Q4) does **not** fit fully on a 3090 but is comfortable on a Mac Mini/Studio with ≥32 GB unified memory.
+- **Nous Hermes lineage:** the **Hermes 4** family (14B / 70B / 405B, released Aug 2025) is **dense**, built on Qwen3-14B (14B) and Llama 3.1 (70B/405B), with toggleable `<think>` reasoning — capable and steerable, but not MoE. The canonical Nous *MoE* is **Nous-Hermes-2-Mixtral-8x7B** (SFT / DPO on Mixtral). For the "MoE speed on a local box" goal, the small-active MoEs above are the better 3090 fit; a Mac Mini opens up the larger-total options. *(Model details rephrased for licensing compliance; sources: [Hermes 4 overview](https://aiwiki.ai/wiki/hermes_4), [Nous-Hermes-2-Mixtral-8x7B](https://huggingface.co/LoneStriker/Nous-Hermes-2-Mixtral-8x7B-DPO-3.0bpw-h6-exl2).)*
+
+Always confirm the exact id the server reports (see the discovery step below) — quant tags and org prefixes vary between LM Studio, Ollama, and vLLM.
+
+## Per-task model selection (`config/models.yaml`) — proposed
+
+**Status:** design proposal — not yet implemented. Today model choice is env-var only (`LLM_MODEL`, `LLM_VISION_MODEL`), one model per run. A declarative config lets the multi-role pipeline pick the right model (and endpoint) per task, and validate those picks against what LM Studio actually has loaded or downloaded.
+
+### Proposed schema
+
+```yaml
+# config/models.yaml — role/task → model + endpoint map
+
+# 1. Endpoints: OpenAI-compatible servers the pipeline may reach
+endpoints:
+  lmstudio_local:  { base_url: http://localhost:1234/v1, api_key: lm-studio }
+  lmstudio_3090:   { base_url: http://10.0.1.8:1234/v1,  api_key: lm-studio }
+  mac_mini:        { base_url: http://10.0.1.20:1234/v1, api_key: lm-studio }
+  spark_vllm:      { base_url: http://spark-4f07:8000/v1, api_key: dummy }
+
+# 2. Model definitions. `id` MUST match what /v1/models reports on that endpoint.
+models:
+  ministral-3b:
+    id: mistralai/ministral-3-3b
+    endpoint: lmstudio_local
+    sampling: { temperature: 0.05 }
+  qwen3-30b-a3b:
+    id: qwen3.6-30b-a3b
+    endpoint: lmstudio_3090
+    disable_thinking: true
+  gemma4-judge:
+    id: gemma-4-26b            # trained style LoRA GGUF
+    endpoint: lmstudio_3090
+    disable_thinking: true
+    sampling: { temperature: 1.0, top_p: 0.95, top_k: 64 }
+  hermes4-14b:
+    id: nousresearch/hermes-4-14b
+    endpoint: mac_mini
+    disable_thinking: true
+
+# 3. Tasks: which model handles each pipeline role
+tasks:
+  vision_transcription: { model: qwen-vl,       workers: 1 }
+  classify_fast:        { model: ministral-3b,  workers: 4 }   # --pass fast
+  classify_deep:        { model: qwen3-30b-a3b, workers: 2 }   # --pass deep
+  council:              { model: hermes4-14b,   workers: 1 }   # --llm-mode council
+  judge_eval:           { model: gemma4-judge,  workers: 2 }   # Phase 5A
+```
+
+### Discovery — what LM Studio actually has
+
+A loader should reconcile `tasks.*.model` against live server state before a run, so a typo or an unloaded model fails fast instead of mid-corpus:
+
+| Source | Command / endpoint | Tells you |
+|--------|--------------------|-----------|
+| OpenAI compat (already used by `check_connection()`) | `GET {base_url}/models` | Ids visible to the server; includes all downloaded models when Just‑In‑Time loading is on |
+| LM Studio REST v0 | `GET http://<host>:1234/api/v0/models` | Richer: **loaded vs unloaded**, quantization, max context |
+| LM Studio CLI | `lms ls` | Every downloaded model (size, arch, params) |
+| LM Studio CLI | `lms ps` | Models currently **loaded** in memory |
+
+*(LM Studio endpoint/CLI behavior summarized from [LM Studio REST API v0](https://lmstudio.ai/docs/developer/rest/endpoints), [`lms ls`](https://www.lmstudio.ai/docs/cli/ls), [`lms ps`](https://www.lmstudio.ai/docs/cli/ps), and [OpenAI-compat models](https://www.lmstudio.ai/docs/developer/openai-compat/models); rephrased for compliance.)*
+
+### Loader sketch (maps onto existing env vars + `llm_client`)
+
+The config is a thin layer over the current client — it resolves a task to the same arguments `complete()` already takes, so no call sites need to change:
+
+```python
+# tools/model_registry.py (proposed)
+def resolve(task: str, cfg="config/models.yaml") -> dict:
+    """task -> {model, base_url, api_key, disable_thinking, sampling, workers}."""
+    ...
+
+# usage in run_pipeline.py / metric_council.py
+r = resolve("classify_deep")
+text = complete(prompt, model=r["model"], base_url=r["base_url"],
+                api_key=r["api_key"],
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+                           if r["disable_thinking"] else None,
+                **r["sampling"])
+```
+
+Resolution precedence (keeps backward compatibility): **explicit CLI flag (`--model`) → `config/models.yaml` task entry → `LLM_MODEL` env → `check_connection()` first available**. A `--print-plan` / `manage.py models` command could list each task, its resolved model, and whether that id is currently loaded on its endpoint.
+
+Suggested first implementation step: add `tools/model_registry.py` + a `config/models.example.yaml`, wire `resolve()` into `run_pipeline.py` (`--task` flag) behind the existing env-var default so nothing breaks when the file is absent.
+
 ## Inspect script (optional utility)
 
 To add to this repo later: `tools/inspect_chat_template.py` that, given a Hugging Face model id:

@@ -67,14 +67,16 @@ python tools/incremental/manage.py classify-progress \
 # 5. Build a mixed batch: up to 50 MB styled per corpus
 python tools/incremental/manage.py build-batch --max-mb 50
 
-# 6. Train (Mistral-Nemo 12B, Silver Siren 12B, etc.)
-#    Set paths.data_dir in train/train_config.toml to the batch dir, e.g.:
+# 6. Train on DGX Spark (active target: Gemma 4 26B-A4B QAT).
+#    Point paths.data_dir at the batch dir in your config, e.g.:
 #    paths.data_dir = "train/incremental/batches/batch_001"
-python train/train_qwen_unsloth.py
+cd train && ./run_phase4_docker.sh --config train_config.gemma4_spark.toml
+#    The Docker wrapper runs train_qwen_unsloth.py; batches are model-agnostic JSONL.
+#    Legacy path: python train/train_qwen_unsloth.py with train_config.toml (Mistral-Nemo, paused).
 
 # 7. Record the run so those segments are not reused
 python tools/incremental/manage.py mark-trained --batch batch_001 --run run_001 \
-  --model-base "your-model-id" --output-dir "mistral_style_lora"
+  --model-base "your-model-id" --output-dir "gemma4_style_lora"
 ```
 
 Re-run `build-batch` after more segments are classified to start the next
@@ -85,7 +87,10 @@ interruptions, compactions, and completions in `train/incremental/logs/` by
 default. Pass `--run-log <path>` for a custom JSONL log or `--no-run-log` to
 disable event logging.
 
-## Silver Siren / abliterated Mistral
+## Alternate base models (Silver Siren / abliterated Mistral, etc.)
 
-Use the same `train_qwen_unsloth.py` path; set `model.base` in `train_config.toml`
-to your Silver Siren 12B HF id. Incremental batches are model-agnostic JSONL.
+Incremental batches are **model-agnostic JSONL**, so any base works through the same
+`run_phase4_docker.sh` → `train_qwen_unsloth.py` path — set `model.base` in your
+config to the target HF id (e.g. a Silver Siren 12B). The active target is
+**Gemma 4 26B-A4B QAT** (`train_config.gemma4_spark.toml`); Mistral-Nemo 12B
+(`train_config.toml`) is the paused legacy config.

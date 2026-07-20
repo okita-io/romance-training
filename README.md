@@ -5,7 +5,7 @@ A pipeline to annotate prose with **Leech & Short style metrics** and fine-tune 
 The trained model can:
 - **Classify** any passage — outputs a structured style profile (register, POV, figurative density, sentence rhythm, etc.)
 - **Judge** specific dimensions — "Analyze the verbosity of this passage", "What register is this written in?"
-- **Rewrite** to a target style — "Rewrite this in a more formal register" (Phase 3B — requires paired training data, built separately)
+- **Rewrite** to a target style — "Rewrite this in a more formal register" (Phase 3B — requires paired training data, built as a **separate** editor product; see [`docs/MOE_STYLE_EDITOR.md`](docs/MOE_STYLE_EDITOR.md))
 
 ## Machine setup (Spark trains; 3090 infers)
 
@@ -24,7 +24,9 @@ The trained model can:
 
 **North-star:** long-form fiction that holds a chosen voice, style, and tone across a full novel. Roadmap: [`docs/PHASE5_STYLE_STEERING.md`](docs/PHASE5_STYLE_STEERING.md) (Phases 5–6: evaluator → steering → bulk Gemma classify → novel merge).
 
-**MoE style editor (target):** train a multi-grain editor (sentence / span / act experts) on top of the judge stack — current system, gaps, and completion tracks: [`docs/MOE_STYLE_EDITOR.md`](docs/MOE_STYLE_EDITOR.md).
+**Two co-equal MoE targets** on top of the judge stack (separate training products — never cross-trained):
+- **Style editor** — multi-grain grade + rewrite (sentence / span / act experts): [`docs/MOE_STYLE_EDITOR.md`](docs/MOE_STYLE_EDITOR.md).
+- **Style writer** — card-conditioned generator with swappable voice/genre LoRA adapters, coached by the editor: [`docs/MOE_WRITER.md`](docs/MOE_WRITER.md).
 
 **Training on Spark only:**
 
@@ -407,7 +409,7 @@ Known gaps in the repo and concrete tasks to close them. Use this as a backlog w
 
 | Gap | Task |
 |-----|------|
-| `train_qwen_unsloth.py` docstring still describes Qwen / romance generation | Update module docstring and GGUF size hints for Mistral-Nemo 12B |
+| `train_qwen_unsloth.py` docstring still describes Qwen / romance generation | Update module docstring and GGUF size hints for the active Gemma 4 26B-A4B QAT target |
 | README omits `--resume`, `--export-only`, and `TRAIN_CONFIG_PATH` | Document training restart and export-only flows in Phase 4 |
 | No post-training inference section | Add "Using the model" with LM Studio load steps and example classify / judge / rewrite prompts |
 | Windows setup exists (`install_training_deps.ps1`, GGUF/CMake notes) but README is Linux-centric | Add a short Windows subsection under Setup pointing at the `.ps1` helpers |

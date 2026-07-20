@@ -251,7 +251,7 @@ Workstreams below are **gates**: later items depend on earlier quality.
 ### Track A — Trusted span teacher (foundation)
 
 1. **Stabilize council labeling** for editor-grade data: prefer unanimous + arbitrated-with-rationale; version tags; document model id.
-2. **Bulk pilot:** every-Nth / stratified sample across corpora at **~250–350w** chunk size (configurable `target_words` in chunker / pipeline).
+2. **Bulk pilot:** every-Nth / stratified sample across corpora at **~250–350w** chunk size. `chunk_text()` already accepts a `target_words` argument, but `run_pipeline.py` hardcodes `CHUNK_WORDS = 500` with no CLI override — add a `--chunk-words` flag before piloting shorter spans (see G3).
 3. **Extend Phase 3:** emit `grade` + `critique` pairs from `style_council` (`generate_instruction_pairs.py` or sibling script).
 4. **Optional:** distill council → smaller/faster judge, or promote Gemma after 5A go for bulk.
 
@@ -312,10 +312,12 @@ flowchart LR
 | `tools/style_classification/review_council.py` | Human review of council judgments |
 | `tools/style_classification/chunk_text.py` | Sentence-boundary chunking |
 | `tools/training_formats/generate_instruction_pairs.py` | Phase 3 classify/judgment |
-| `train/style_training/` | SFT JSONL for Phase 4 |
+| `train/style_training/` | SFT JSONL for Phase 4 *(generated, gitignored — built by Phase 3, often on Spark)* |
 | `train/train_config.gemma4_spark.toml` | Spark LoRA config |
 | `train/model_cards/gemma4_style_lora.md` | Judge model card |
 | `docs/PHASE5_STYLE_STEERING.md` | Judge → steer → novel roadmap |
+| `docs/LLM-Backends.md` | Candidate models per role + proposed `config/models.yaml` task→model map |
+| `docs/MOE_WRITER.md` | Sibling: the card-conditioned MoE **writer** this editor coaches |
 | `docs/MOE_STYLE_EDITOR.md` | This document |
 
 ---

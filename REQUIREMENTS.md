@@ -31,7 +31,7 @@ CREATE_VENV=1 ./train/install_training_deps.sh
 
 | Path | Purpose |
 |------|---------|
-| `train/train_qwen_unsloth.py` | Qwen LoRA fine-tuning + GGUF export (Unsloth) |
+| `train/train_qwen_unsloth.py` | LoRA fine-tuning + GGUF export (Unsloth; base model set by config — active: Gemma 4 26B-A4B QAT) |
 | `train/romance_corpus/` | JSONL training/validation splits and source texts |
 | `train/tests/` | Integration tests against `romance_factory` |
 | `train/install_training_deps.sh` | GPU training environment bootstrap |
