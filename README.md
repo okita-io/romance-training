@@ -28,6 +28,8 @@ The trained model can:
 - **Style editor** — multi-grain grade + rewrite (sentence / span / act experts): [`docs/MOE_STYLE_EDITOR.md`](docs/MOE_STYLE_EDITOR.md).
 - **Style writer** — card-conditioned generator with swappable voice/genre LoRA adapters, coached by the editor: [`docs/MOE_WRITER.md`](docs/MOE_WRITER.md).
 
+Editor and writer live here (not a separate repo) by design: judge, editor, and writer **share the style-classification data** — one labeled corpus trains all three — and the same MoE base. A prior `romance-editor` split was retired for this reason.
+
 **Training on Spark only:**
 
 ```bash

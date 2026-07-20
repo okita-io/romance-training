@@ -10,6 +10,8 @@ See `README.md` for the full pipeline, layout, and backlog. **North-star / Phase
 
 Keep the **judge, editor, and writer as separate training products** — never overwrite one checkpoint with another's data, and keep the referee judge held out from the writer's reward loop.
 
+**Why all three live in this one repo:** they share the **Leech & Short style-classification data** — the same labeled corpus trains the judge to score, the editor to rewrite, and the writer to generate on-card — plus the same MoE base family. Co-locate the products; keep the checkpoints separate. (An earlier `romance-editor` repo that split the editor out was **retired** for this reason; see the project architecture repo.)
+
 **Machine split:**
 - **DGX Spark (`spark-4f07`, ~128 GB unified Blackwell + CUDA)** — **all Phase 4+ LoRA training** and GGUF export.
 - **RTX 3090 (24 GB) + LM Studio** — **inference only** (quantized finished GGUFs), optional Phase 2 labeling. Do **not** fine-tune here.
