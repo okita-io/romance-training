@@ -224,6 +224,7 @@ Plot / character / diegetic checks stay outside this MoE (existing factory agent
 
 - Default chunk ≈ 500 words; span editor wants ~250–350; sentence editor wants sentence ids.
 - Need stable ids: `story_id`, `act_id`, `span_id`, `sentence_id`, parent links for half-spans / sentences.
+- **Implemented (additive):** `chunk_record_multigrain` + `tools/data_preparation/build_multigrain_chunks.py` emit sentence / ~300w span / ~1000w act with parent ids; `manage.py segment --grain` packs each into the same ~50 MB segment budget under `segments/<corpus>/<grain>/`. Legacy ~500w trees stay the default classify path until Track A pilot switches to `span`. See [`train/incremental/README.md`](../train/incremental/README.md#multigrain-segments-sentence--span--act).
 
 ### G4 — Model specialization
 
@@ -310,7 +311,9 @@ flowchart LR
 | `tools/style_classification/run_pipeline.py` | Phase 2 bulk classify |
 | `tools/style_classification/metric_council.py` | Single-metric council + arbitrator |
 | `tools/style_classification/review_council.py` | Human review of council judgments |
-| `tools/style_classification/chunk_text.py` | Sentence-boundary chunking |
+| `tools/style_classification/chunk_text.py` | Sentence-boundary + multigrain chunking |
+| `tools/data_preparation/build_multigrain_chunks.py` | Materialize sentence/span/act staging JSONL |
+| `tools/incremental/manage.py` | 50 MB segment pack + ledger (`--grain` for multigrain) |
 | `tools/training_formats/generate_instruction_pairs.py` | Phase 3 classify/judgment |
 | `train/style_training/` | SFT JSONL for Phase 4 |
 | `train/train_config.gemma4_spark.toml` | Spark LoRA config |

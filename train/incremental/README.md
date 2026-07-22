@@ -18,6 +18,10 @@ train/incremental/
     gutenberg_fiction/
     erotic_books_korshuk/
     fantasy_books_korshuk/
+      # Multigrain (additive; does not replace legacy ~500w trees above):
+      # gutenberg_fiction/span/input/seg_000.jsonl
+      # gutenberg_fiction/sentence/...
+      # gutenberg_fiction/act/...
   batches/
     batch_001/
       manifest.json
@@ -27,6 +31,10 @@ train/incremental/
   logs/
     <output-stem>.events.jsonl # append-only Phase 2 run/interruption events
 ```
+
+Legacy `segments/<corpus>/input/` stays the default ~500w classify path. Multigrain
+trees live under `segments/<corpus>/<grain>/` and are registered separately in the ledger
+(`grain` field; ids like `gutenberg_fiction/span/seg_000`).
 
 ## Ledger states
 
@@ -89,3 +97,24 @@ disable event logging.
 
 Use the same `train_qwen_unsloth.py` path; set `model.base` in `train_config.toml`
 to your Silver Siren 12B HF id. Incremental batches are model-agnostic JSONL.
+
+## Multigrain segments (sentence / span / act)
+
+Build additive grains without touching existing ~500w segments:
+
+```bash
+# 1. Materialize staging JSONL (~300w span, ~1000w act, plus sentences)
+python tools/data_preparation/build_multigrain_chunks.py --write --slug gutenberg_fiction
+
+# 2. Pack each grain into ~50 MB segments (same byte budget as legacy)
+python tools/incremental/manage.py segment --corpus gutenberg_fiction --grain all
+# or one grain: --grain span
+
+# 3. Classify without re-chunking to 500w
+python tools/incremental/manage.py classify-next \
+  --corpus gutenberg_fiction --grain span --pass both --workers 4
+# Writes train/romance_corpus/gutenberg_fiction_span_styled_seg_NNN.jsonl
+```
+
+Staging output: `train/staging/multigrain/<slug>/{sentence,span,act}.jsonl`  
+(`corpora.json` → `multigrain_staging`). Default classify path without `--grain` remains legacy ~500w.

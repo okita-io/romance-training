@@ -32,8 +32,19 @@ class ClassificationProgress:
         return 100.0 * self.complete / self.pipeline_chunks
 
 
-def default_manual_output(corpus: str, segment_index: int) -> Path:
+def default_manual_output(
+    corpus: str,
+    segment_index: int,
+    grain: str | None = None,
+) -> Path:
     """Default styled path for direct ``run_pipeline.py`` segment runs."""
+    if grain:
+        return (
+            ROOT
+            / "train"
+            / "romance_corpus"
+            / f"{corpus}_{grain}_styled_seg_{segment_index:03d}.jsonl"
+        )
     return ROOT / "train" / "romance_corpus" / f"{corpus}_styled_seg_{segment_index:03d}.jsonl"
 
 
@@ -41,29 +52,49 @@ def resolve_output_path(
     corpus: str | None,
     segment_index: int | None,
     output: Path | None,
+    grain: str | None = None,
 ) -> Path | None:
     if output is not None:
         return output
     if corpus is not None and segment_index is not None:
         corpus_dir = ROOT / "train" / "romance_corpus"
-        for name in (
-            f"{corpus}_styled_seg_{segment_index:03d}.jsonl",
-            f"{corpus}_deep_seg_{segment_index:03d}.jsonl",
-        ):
+        names: list[str] = []
+        if grain:
+            names.append(f"{corpus}_{grain}_styled_seg_{segment_index:03d}.jsonl")
+        names.extend(
+            [
+                f"{corpus}_styled_seg_{segment_index:03d}.jsonl",
+                f"{corpus}_deep_seg_{segment_index:03d}.jsonl",
+            ]
+        )
+        for name in names:
             candidate = corpus_dir / name
             if candidate.is_file():
                 return candidate
-        styled = (
-            ROOT
-            / "train"
-            / "incremental"
-            / "segments"
-            / corpus
-            / "styled"
-            / f"seg_{segment_index:03d}.jsonl"
-        )
+        if grain:
+            styled = (
+                ROOT
+                / "train"
+                / "incremental"
+                / "segments"
+                / corpus
+                / grain
+                / "styled"
+                / f"seg_{segment_index:03d}.jsonl"
+            )
+        else:
+            styled = (
+                ROOT
+                / "train"
+                / "incremental"
+                / "segments"
+                / corpus
+                / "styled"
+                / f"seg_{segment_index:03d}.jsonl"
+            )
         if styled.is_file():
             return styled
+        return default_manual_output(corpus, segment_index, grain=grain)
     return None
 
 
@@ -86,6 +117,7 @@ def measure_classification_progress(
     pass_mode: str = "both",
     corpus: str | None = None,
     segment_index: int | None = None,
+    no_rechunk: bool = False,
 ) -> ClassificationProgress:
     from tools.style_classification.pass_config import PassMode, pass_complete
     from tools.style_classification.run_pipeline import (
@@ -97,7 +129,10 @@ def measure_classification_progress(
     )
 
     source_records = _iter_source_records(input_path)
-    chunks = [chunk for record in source_records for chunk in _chunk_record(record)]
+    if no_rechunk:
+        chunks = source_records
+    else:
+        chunks = [chunk for record in source_records for chunk in _chunk_record(record)]
 
     output_index: dict[str, dict] = {}
     output_order: list[str] = []

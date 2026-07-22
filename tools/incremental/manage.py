@@ -52,14 +52,27 @@ from tools.incremental.classification_progress import (
 )
 from tools.incremental.ledger import (
     BATCHES_ROOT,
+    GRAIN_NAMES,
     INCREMENTAL_ROOT,
     Ledger,
     corpus_input_path,
     corpus_segments_dir,
     load_corpora_config,
+    multigrain_input_path,
     segment_id,
 )
 from tools.incremental.segment_jsonl import segment_jsonl
+
+
+def _resolve_grains(grain_arg: str | None) -> list[str | None]:
+    """Return grain list for segment/classify. ``None`` entry = legacy ~500w path."""
+    if grain_arg is None:
+        return [None]
+    if grain_arg == "all":
+        return list(GRAIN_NAMES)
+    if grain_arg not in GRAIN_NAMES:
+        raise SystemExit(f"Unknown grain: {grain_arg} (choose {', '.join(GRAIN_NAMES)}, all)")
+    return [grain_arg]
 
 
 def _next_batch_id(ledger: Ledger) -> str:
@@ -70,6 +83,9 @@ def _next_batch_id(ledger: Ledger) -> str:
 
 def cmd_classify_progress(args: argparse.Namespace) -> None:
     cfg = load_corpora_config()
+    grain = getattr(args, "grain", None)
+    if grain is not None and grain not in GRAIN_NAMES:
+        raise SystemExit(f"Unknown grain: {grain}")
     segments: list[tuple[str | None, int | None, Path, Path | None]] = []
 
     if args.input:
@@ -80,7 +96,7 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
         slug = args.corpus
         if slug not in cfg["corpora"]:
             raise SystemExit(f"Unknown corpus: {slug}")
-        input_dir = corpus_segments_dir(slug, "input")
+        input_dir = corpus_segments_dir(slug, "input", grain=grain)
         if not input_dir.is_dir():
             raise SystemExit(f"No input segments: {input_dir}")
 
@@ -95,7 +111,11 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
 
         for path in paths:
             idx = int(path.stem.split("_")[1])
-            out = args.output if (args.output and len(paths) == 1) else resolve_output_path(slug, idx, None)
+            out = (
+                args.output
+                if (args.output and len(paths) == 1)
+                else resolve_output_path(slug, idx, None, grain=grain)
+            )
             segments.append((slug, idx, path, out))
     else:
         raise SystemExit("Specify --corpus or --input")
@@ -103,6 +123,7 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
     ledger = Ledger() if args.sync_ledger else None
     pass_fast = args.pass_mode in ("fast", "full", "both")
     pass_deep = args.pass_mode in ("deep", "full", "both")
+    no_rechunk = grain is not None
 
     for slug, idx, input_path, output_path in segments:
         progress = measure_classification_progress(
@@ -111,10 +132,12 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
             pass_mode=args.pass_mode,
             corpus=slug,
             segment_index=idx,
+            no_rechunk=no_rechunk,
         )
+        label = f"{slug}/{grain}" if grain else slug
         if args.all_segments and args.quiet:
             print(
-                f"{slug}/seg_{idx:03d}: "
+                f"{label}/seg_{idx:03d}: "
                 f"{progress.complete:,}/{progress.pipeline_chunks:,} "
                 f"({progress.percent_complete:.1f}%)"
             )
@@ -125,7 +148,7 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
         if ledger is None or slug is None or idx is None:
             continue
 
-        seg_id = segment_id(slug, idx)
+        seg_id = segment_id(slug, idx, grain=grain)
         if progress.pending == 0 and progress.pipeline_chunks > 0:
             if output_path is None:
                 continue
@@ -137,6 +160,7 @@ def cmd_classify_progress(args: argparse.Namespace) -> None:
                     "id": seg_id,
                     "corpus": slug,
                     "segment_index": idx,
+                    "grain": grain,
                     "input_path": str(input_path.relative_to(ROOT)).replace("\\", "/"),
                     "classification_status": "in_progress",
                     "training_status": "unavailable",
@@ -177,24 +201,37 @@ def cmd_segment(args: argparse.Namespace) -> None:
         raise SystemExit("Specify --corpus SLUG or --all")
 
     max_bytes = int(args.max_mb * 1024 * 1024)
+    grains = _resolve_grains(args.grain)
     ledger = Ledger()
 
     for slug in corpora:
         if slug not in cfg["corpora"]:
             raise SystemExit(f"Unknown corpus: {slug}")
-        input_path = corpus_input_path(slug)
-        if not input_path.is_file():
-            print(f"skip {slug}: missing {input_path.relative_to(ROOT)}")
-            continue
 
-        out_dir = corpus_segments_dir(slug, "input")
-        print(f"segment {slug} <- {input_path.relative_to(ROOT)}")
-        parts = segment_jsonl(input_path, out_dir, max_bytes=max_bytes)
-        for info in parts:
-            ledger.register_input_segment(
-                slug, info.index, info.path, bytes=info.bytes, rows=info.rows
-            )
-        print(f"  -> {len(parts)} segments in {out_dir.relative_to(ROOT)}")
+        for grain in grains:
+            if grain is None:
+                input_path = args.input or corpus_input_path(slug)
+            else:
+                input_path = args.input or multigrain_input_path(slug, grain)
+            if not input_path.is_file():
+                label = f"{slug}/{grain}" if grain else slug
+                print(f"skip {label}: missing {input_path.relative_to(ROOT)}")
+                continue
+
+            out_dir = corpus_segments_dir(slug, "input", grain=grain)
+            label = f"{slug}/{grain}" if grain else slug
+            print(f"segment {label} <- {input_path.relative_to(ROOT)}")
+            parts = segment_jsonl(input_path, out_dir, max_bytes=max_bytes)
+            for info in parts:
+                ledger.register_input_segment(
+                    slug,
+                    info.index,
+                    info.path,
+                    bytes=info.bytes,
+                    rows=info.rows,
+                    grain=grain,
+                )
+            print(f"  -> {len(parts)} segments in {out_dir.relative_to(ROOT)}")
     ledger.save()
     print(f"\nLedger -> {ledger.path.relative_to(ROOT)}")
 
@@ -235,20 +272,35 @@ def cmd_import_styled(args: argparse.Namespace) -> None:
 
 
 def cmd_classify_next(args: argparse.Namespace) -> None:
+    grain = args.grain
+    if grain is not None and grain not in GRAIN_NAMES:
+        raise SystemExit(f"Unknown grain: {grain}")
+
     ledger = Ledger()
-    seg = ledger.next_pending(args.corpus)
+    seg = ledger.next_pending(args.corpus, grain=grain)
     if not seg:
-        print(f"No pending segments for {args.corpus}")
+        label = f"{args.corpus}/{grain}" if grain else args.corpus
+        print(f"No pending segments for {label}")
         return
 
     seg_id = seg["id"]
+    grain = seg.get("grain") or grain
     input_rel = seg.get("input_path")
     if not input_rel:
         raise SystemExit(f"Segment {seg_id} has no input_path")
     input_path = ROOT / input_rel
-    styled_dir = corpus_segments_dir(args.corpus, "styled")
-    styled_dir.mkdir(parents=True, exist_ok=True)
-    styled_path = styled_dir / f"seg_{seg['segment_index']:03d}.jsonl"
+
+    # Prefer romance_corpus naming for grain runs; keep incremental styled/ for legacy.
+    if grain:
+        romance_dir = ROOT / "train" / "romance_corpus"
+        romance_dir.mkdir(parents=True, exist_ok=True)
+        styled_path = romance_dir / f"{args.corpus}_{grain}_styled_seg_{seg['segment_index']:03d}.jsonl"
+        styled_dir = corpus_segments_dir(args.corpus, "styled", grain=grain)
+        styled_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        styled_dir = corpus_segments_dir(args.corpus, "styled")
+        styled_dir.mkdir(parents=True, exist_ok=True)
+        styled_path = styled_dir / f"seg_{seg['segment_index']:03d}.jsonl"
 
     rows = seg.get("rows", "?")
     size_mb = (seg.get("bytes") or 0) / (1024 * 1024)
@@ -277,6 +329,8 @@ def cmd_classify_next(args: argparse.Namespace) -> None:
         "--output",
         str(styled_path),
     ]
+    if grain:
+        cmd.append("--no-rechunk")
     if args.quiet:
         cmd.append("--quiet")
     print("Running:", " ".join(cmd))
@@ -407,6 +461,18 @@ def main() -> None:
     p_seg.add_argument("--corpus", action="append", default=None)
     p_seg.add_argument("--all", action="store_true")
     p_seg.add_argument("--max-mb", type=int, default=50)
+    p_seg.add_argument(
+        "--grain",
+        default=None,
+        choices=(*GRAIN_NAMES, "all"),
+        help="Pack multigrain staging JSONL (sentence/span/act/all). Omit for legacy ~500w input.",
+    )
+    p_seg.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="Override input JSONL (legacy path or a single grain file)",
+    )
     p_seg.set_defaults(func=cmd_segment)
 
     p_imp = sub.add_parser("import-styled", help="Segment an existing styled JSONL as classified")
@@ -424,6 +490,12 @@ def main() -> None:
     p_cls.add_argument("--pass", dest="pass_mode", default="both", choices=("fast", "deep", "full", "both"))
     p_cls.add_argument("--workers", type=int, default=4)
     p_cls.add_argument("--quiet", action="store_true")
+    p_cls.add_argument(
+        "--grain",
+        default=None,
+        choices=GRAIN_NAMES,
+        help="Classify next pending multigrain segment (passes --no-rechunk to the pipeline)",
+    )
     p_cls.set_defaults(func=cmd_classify_next)
 
     p_prog = sub.add_parser(
@@ -447,6 +519,12 @@ def main() -> None:
         help="Update ledger.json from output progress (in_progress or classified)",
     )
     p_prog.add_argument("--quiet", action="store_true", help="One line per segment with --all-segments")
+    p_prog.add_argument(
+        "--grain",
+        default=None,
+        choices=GRAIN_NAMES,
+        help="Report progress for a multigrain segment tree (implies no-rechunk counting)",
+    )
     p_prog.set_defaults(func=cmd_classify_progress)
 
     p_batch = sub.add_parser("build-batch", help="Mixed training batch from available styled segments")

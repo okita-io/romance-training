@@ -22,12 +22,23 @@ train/mistral_style_lora/
 train/mistral_style_f16/
 train/mistral_style_q5/
 train/mistral_style_q4/
+train/gemma4_style_lora/
+train/gemma4_style_f16/
+train/gemma4_style_q5/
+train/gemma4_style_q4/
 train/unsloth_compiled_cache/
 train/training.log
+train/gemma4_training.log.bak.*
 *.log
+*.gguf
+
+# Vendored / local tool trees
+train/llama.cpp/
 
 # Large artifacts (corpus JSONL may be local-only)
 train/romance_corpus/*.jsonl
+train/romance_corpus/_council_test_*
+train/romance_corpus/temp.json
 train/staging/
 train/incremental/ledger.json
 train/incremental/segments/
@@ -45,5 +56,6 @@ source-data/hf/
 source-data/unified/*.jsonl
 source-data/processed/
 
-# Style benchmark run outputs
+# Eval / style benchmark run outputs
+eval/bakeoff_5a/results/
 eval/style_benchmark/results/

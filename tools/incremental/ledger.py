@@ -18,6 +18,8 @@ BATCHES_ROOT = INCREMENTAL_ROOT / "batches"
 ClassificationStatus = Literal["pending", "in_progress", "classified", "failed"]
 TrainingStatus = Literal["unavailable", "available", "allocated", "trained"]
 BatchStatus = Literal["ready", "trained"]
+GrainName = Literal["sentence", "span", "act"]
+GRAIN_NAMES: tuple[GrainName, ...] = ("sentence", "span", "act")
 
 
 @dataclass
@@ -35,6 +37,7 @@ class SegmentRecord:
     pass_deep: bool = False
     batch_id: str | None = None
     training_run_id: str | None = None
+    grain: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -76,12 +79,30 @@ def corpus_input_path(corpus: str) -> Path:
     return ROOT / rel
 
 
-def corpus_segments_dir(corpus: str, stage: str) -> Path:
+def multigrain_input_path(corpus: str, grain: str) -> Path:
+    """Staging path for a built multigrain JSONL file."""
+    cfg = load_corpora_config()
+    staging = cfg.get("multigrain_staging", "train/staging/multigrain")
+    return ROOT / staging / corpus / f"{grain}.jsonl"
+
+
+def corpus_segments_dir(corpus: str, stage: str, grain: str | None = None) -> Path:
+    if grain:
+        return SEGMENTS_ROOT / corpus / grain / stage
     return SEGMENTS_ROOT / corpus / stage
 
 
-def segment_id(corpus: str, index: int) -> str:
+def segment_id(corpus: str, index: int, grain: str | None = None) -> str:
+    if grain:
+        return f"{corpus}/{grain}/seg_{index:03d}"
     return f"{corpus}/seg_{index:03d}"
+
+
+def _grain_matches(seg: dict[str, Any], grain: str | None) -> bool:
+    seg_grain = seg.get("grain")
+    if grain is None:
+        return not seg_grain
+    return seg_grain == grain
 
 
 class Ledger:
@@ -131,10 +152,11 @@ class Ledger:
         *,
         bytes: int,
         rows: int,
+        grain: str | None = None,
     ) -> SegmentRecord:
         rel = str(path.relative_to(ROOT)).replace("\\", "/")
         rec = SegmentRecord(
-            id=segment_id(corpus, index),
+            id=segment_id(corpus, index, grain=grain),
             corpus=corpus,
             segment_index=index,
             input_path=rel,
@@ -142,6 +164,7 @@ class Ledger:
             rows=rows,
             classification_status="pending",
             training_status="unavailable",
+            grain=grain,
         )
         self.upsert_segment(rec)
         return rec
@@ -156,9 +179,10 @@ class Ledger:
         bytes: int,
         rows: int,
         classified: bool = True,
+        grain: str | None = None,
     ) -> SegmentRecord:
         rec = SegmentRecord(
-            id=segment_id(corpus, index),
+            id=segment_id(corpus, index, grain=grain),
             corpus=corpus,
             segment_index=index,
             input_path=str(input_path.relative_to(ROOT)).replace("\\", "/") if input_path else None,
@@ -167,6 +191,7 @@ class Ledger:
             rows=rows,
             classification_status="classified" if classified else "pending",
             training_status="available" if classified else "unavailable",
+            grain=grain,
         )
         self.upsert_segment(rec)
         return rec
@@ -181,25 +206,28 @@ class Ledger:
         seg["updated_at"] = _now()
         self.segments[seg_id] = seg
 
-    def next_pending(self, corpus: str) -> dict[str, Any] | None:
+    def next_pending(self, corpus: str, grain: str | None = None) -> dict[str, Any] | None:
         """Lowest-index segment that is pending or was interrupted (in_progress)."""
         for status in ("in_progress", "pending"):
             candidates = [
                 s for s in self.segments.values()
-                if s.get("corpus") == corpus and s.get("classification_status") == status
+                if s.get("corpus") == corpus
+                and s.get("classification_status") == status
+                and _grain_matches(s, grain)
             ]
             if candidates:
                 candidates.sort(key=lambda s: s.get("segment_index", 0))
                 return candidates[0]
         return None
 
-    def available_for_training(self, corpus: str) -> list[dict[str, Any]]:
+    def available_for_training(self, corpus: str, grain: str | None = None) -> list[dict[str, Any]]:
         out = [
             s for s in self.segments.values()
             if s.get("corpus") == corpus
             and s.get("classification_status") == "classified"
             and s.get("training_status") == "available"
             and s.get("styled_path")
+            and _grain_matches(s, grain)
         ]
         out.sort(key=lambda s: s.get("segment_index", 0))
         return out
@@ -238,7 +266,7 @@ class Ledger:
         batch["training_run_id"] = run_id
         batch["updated_at"] = _now()
 
-        for corpus, seg_ids in batch.get("segments", {}).items():
+        for _corpus, seg_ids in batch.get("segments", {}).items():
             for sid in seg_ids:
                 seg = self.segments.get(sid)
                 if not seg:

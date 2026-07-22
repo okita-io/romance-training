@@ -1,5 +1,6 @@
 {
   "max_segment_mb_default": 50,
+  "multigrain_staging": "train/staging/multigrain",
   "training_mix_corpora": [
     "romance_books_korshuk",
     "horror_novel_chunks",

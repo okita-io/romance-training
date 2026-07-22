@@ -120,14 +120,19 @@ class _ProgressTracker:
         return " | ".join(parts)
 
 
-def _chunk_record(record: dict) -> list[dict]:
-    """Split a long record into ~500-word sentence-boundary chunks."""
+def _chunk_record(
+    record: dict,
+    *,
+    target_words: int = CHUNK_WORDS,
+    overlap_sentences: int = CHUNK_OVERLAP_SENTENCES,
+) -> list[dict]:
+    """Split a long record into sentence-boundary chunks of ~target_words."""
     from tools.style_classification.chunk_text import chunk_record
 
     return chunk_record(
         record,
-        target_words=CHUNK_WORDS,
-        overlap_sentences=CHUNK_OVERLAP_SENTENCES,
+        target_words=target_words,
+        overlap_sentences=overlap_sentences,
     )
 
 
@@ -350,6 +355,8 @@ def run(
     council_arbitrate: bool = True,
     run_log_path: Path | None = None,
     run_log_enabled: bool = True,
+    target_words: int = CHUNK_WORDS,
+    no_rechunk: bool = False,
 ) -> None:
     random.seed(seed)
     run_id = uuid4().hex
@@ -393,14 +400,21 @@ def run(
     if limit:
         records = records[:limit]
 
-    # Auto-chunk any full-book records before classification
+    # Auto-chunk any full-book records before classification (unless pre-sized)
     pre_chunk = len(records)
-    records = [chunk for r in records for chunk in _chunk_record(r)]
-    if len(records) != pre_chunk:
-        print(
-            f"Chunked {pre_chunk} records -> {len(records)} chunks "
-            f"({CHUNK_WORDS}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)"
-        )
+    if no_rechunk:
+        print(f"Skipping re-chunk (--no-rechunk); treating {pre_chunk} rows as units")
+    else:
+        records = [
+            chunk
+            for r in records
+            for chunk in _chunk_record(r, target_words=target_words)
+        ]
+        if len(records) != pre_chunk:
+            print(
+                f"Chunked {pre_chunk} records -> {len(records)} chunks "
+                f"({target_words}-word, {CHUNK_OVERLAP_SENTENCES}-sentence overlap)"
+            )
     print(f"Total records: {len(records)}")
 
     output_index, output_order = _load_output_index(output_path)
@@ -710,6 +724,17 @@ def main() -> None:
         help="Disable structured run event logging",
     )
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--target-words",
+        type=int,
+        default=CHUNK_WORDS,
+        help=f"Sentence-boundary chunk size when re-chunking (default: {CHUNK_WORDS})",
+    )
+    parser.add_argument(
+        "--no-rechunk",
+        action="store_true",
+        help="Treat each input row as one unit (for prebuilt multigrain / sized segments)",
+    )
     args = parser.parse_args()
 
     if not args.input.exists():
@@ -744,6 +769,8 @@ def main() -> None:
         council_arbitrate=args.council_arbitrate,
         run_log_path=args.run_log,
         run_log_enabled=not args.no_run_log,
+        target_words=args.target_words,
+        no_rechunk=args.no_rechunk,
     )
 
 
