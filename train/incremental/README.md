@@ -100,7 +100,26 @@ to your Silver Siren 12B HF id. Incremental batches are model-agnostic JSONL.
 
 ## Multigrain segments (sentence / span / act)
 
-Build additive grains without touching existing ~500w segments:
+Build additive grains without touching existing ~500w segments.
+
+**One-shot (recommended):** staging + ~50 MB pack for all mix corpora:
+
+```bash
+# Needs source-data/processed/<slug>/chunks.jsonl
+python tools/data_preparation/prepare_bulk_segments.py --dry-run
+python tools/data_preparation/prepare_bulk_segments.py --write          # default grain: span
+python tools/data_preparation/prepare_bulk_segments.py --write --grain all --slug gutenberg_fiction
+```
+
+**Stratified council pilot** (interleave fiction / Literotica / Gutenberg / …):
+
+```bash
+python tools/data_preparation/build_council_mix.py --report-only
+python tools/data_preparation/build_council_mix.py --write --per-corpus 40
+# Then classify the emitted mix.jsonl with --llm-mode council --no-rechunk
+```
+
+**Manual two-step** (same as the orchestrator):
 
 ```bash
 # 1. Materialize staging JSONL (~300w span, ~1000w act, plus sentences)
@@ -117,4 +136,5 @@ python tools/incremental/manage.py classify-next \
 ```
 
 Staging output: `train/staging/multigrain/<slug>/{sentence,span,act}.jsonl`  
+Council mixes: `train/staging/council_mix/<name>/mix.jsonl`  
 (`corpora.json` → `multigrain_staging`). Default classify path without `--grain` remains legacy ~500w.
