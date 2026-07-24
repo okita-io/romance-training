@@ -384,7 +384,7 @@ def run(
     print(f"Pass mode: {pass_mode}")
     if llm_mode == "joint":
         if field_batch_size and field_batch_size > 0:
-            print(f"Field batching: ≤{field_batch_size} labels per LLM call")
+            print(f"Field batching: <={field_batch_size} labels per LLM call")
         else:
             print("Field batching: off (one JSON call per pass)")
     if llm_mode == "council":
