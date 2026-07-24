@@ -300,6 +300,7 @@ def _enrich(
     prior_profile: dict[str, Any] | None,
     llm_mode: str = "joint",
     council_arbitrate: bool = True,
+    field_batch_size: int = 3,
 ) -> dict:
     text = record.get("text", "")
     from tools.data_preparation.unified_corpus import normalize_prose_text
@@ -322,6 +323,7 @@ def _enrich(
             llm_mode=llm_mode,
             council_meta_out=council_meta if llm_mode == "council" else None,
             council_arbitrate=council_arbitrate,
+            field_batch_size=field_batch_size,
         )
         out = dict(record)
         out["text"] = text
@@ -353,6 +355,7 @@ def run(
     pass_mode: str = "full",
     llm_mode: str = "joint",
     council_arbitrate: bool = True,
+    field_batch_size: int = 3,
     run_log_path: Path | None = None,
     run_log_enabled: bool = True,
     target_words: int = CHUNK_WORDS,
@@ -379,9 +382,16 @@ def run(
         print("No rubric found — run extract_rubric.py first for best results")
 
     print(f"Pass mode: {pass_mode}")
+    if llm_mode == "joint":
+        if field_batch_size and field_batch_size > 0:
+            print(f"Field batching: ≤{field_batch_size} labels per LLM call")
+        else:
+            print("Field batching: off (one JSON call per pass)")
     if llm_mode == "council":
         arb = "with arbitrator on split votes" if council_arbitrate else "majority only"
         print(f"LLM mode: council (single-metric, 3-judge, {arb})")
+    else:
+        print(f"LLM mode: {llm_mode}")
     hint = suggested_workers(pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full")
     if use_llm and hint and workers == 1:
         print(f"Tip: --pass {pass_mode} often runs well with --workers {hint}")
@@ -516,6 +526,7 @@ def run(
             prior,
             llm_mode,
             council_arbitrate,
+            field_batch_size,
         )
         _write_result(key, result)
 
@@ -690,7 +701,14 @@ def main() -> None:
         dest="llm_mode",
         choices=("joint", "council"),
         default="joint",
-        help="joint (one JSON call per pass) or council (single-metric 3-judge vote per field; ~3x LLM calls, higher label reliability)",
+        help="joint (batched JSON calls of ≤3 labels) or council (single-metric 3-judge vote per field)",
+    )
+    parser.add_argument(
+        "--field-batch-size",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Joint mode: max labels per LLM call (default 3). Use 0 for one call per pass (legacy).",
     )
     parser.add_argument(
         "--no-arbitrate",
@@ -767,6 +785,7 @@ def main() -> None:
         pass_mode=args.pass_mode,
         llm_mode=args.llm_mode,
         council_arbitrate=args.council_arbitrate,
+        field_batch_size=args.field_batch_size,
         run_log_path=args.run_log,
         run_log_enabled=not args.no_run_log,
         target_words=args.target_words,

@@ -393,7 +393,8 @@
       "category": "grammatical",
       "name": "Sentence Complexity",
       "source_section": "3.1.B.2",
-      "definition": "Simple vs complex structure; coordination vs subordination vs parataxis.",
+      "definition": "Dominant clause architecture of the passage (Leech & Short 3.1.B.2): how clauses are joined and nested. Judge syntactic structure, not topic or tone. Do NOT use average sentence length alone (that is computed separately as sentence_length_mean / subordination_ratio). Prefer the label that fits MOST sentences; avoid defaulting to moderate when the prose is clearly one-sided.",
+      "analysis_prompt": "Are sentences mostly simple/paratactic (coordination or juxtaposition of short independents), a real mix, or complex/hypotactic (frequent subordination and nesting)? Pick one allowed label for the dominant pattern.",
       "computation": "llm",
       "metric_type": "ordinal",
       "values": [
@@ -402,9 +403,9 @@
         "complex_hypotactic"
       ],
       "scoring": {
-        "low": "Simple paratactic",
-        "mid": "Mixed",
-        "high": "Complex hypotactic"
+        "low": "simple_paratactic - mostly short independent clauses; little subordination; links with and/then/so/but or bare juxtaposition (parataxis). Choppy narration and dialogue-heavy chatty prose often belong here.",
+        "mid": "moderate - substantial mix of coordination and subordination; neither starkly choppy nor densely nested. Use ONLY when both patterns are clearly present in meaningful amounts - not as a safe default.",
+        "high": "complex_hypotactic - frequent dependent clauses (when/while/because/which/that/if/who), nested or trailing subordinates, anticipatory subjects, or multi-clause elaboration inside sentences (Jamesian / Conradian density)."
       }
     },
     {

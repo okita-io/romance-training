@@ -20,7 +20,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 from llm_client import DEFAULT_MODEL, LLMError, complete as llm_complete  # noqa: E402
 
-from .pass_config import PASS1_LLM_FIELDS, PASS2_LLM_FIELDS, PassMode, fields_for_pass  # noqa: E402
+from .pass_config import (  # noqa: E402
+    PASS1_LLM_FIELDS,
+    PASS2_LLM_FIELDS,
+    PassMode,
+    fields_for_pass,
+)
 
 ANALYSIS_SYSTEM_PATH = ROOT / "source" / "extracted" / "style_analysis_system.json"
 
@@ -173,6 +178,21 @@ def _prior_block(prior: dict[str, Any], context_fields: frozenset[str] | None) -
     )
 
 
+def _prior_context_fields(
+    fields: frozenset[str] | None,
+    *,
+    pass_mode: PassMode,
+) -> frozenset[str] | None:
+    """Which prior keys to inject into the prompt for this call."""
+    if fields is None:
+        return None
+    # Deep pass (or any deep-only batch): always show Pass 1 labels as context.
+    if pass_mode == "deep" or fields <= PASS2_LLM_FIELDS:
+        return PASS1_LLM_FIELDS | (fields & PASS2_LLM_FIELDS)
+    # Within fast batches: allow earlier pass-1 labels through.
+    return fields | PASS1_LLM_FIELDS
+
+
 def _build_user_prompt(
     text: str,
     rubric: dict | None,
@@ -180,12 +200,12 @@ def _build_user_prompt(
     *,
     fields: frozenset[str] | None = None,
     prior: dict[str, Any] | None = None,
+    pass_mode: PassMode = "full",
 ) -> str:
     dims = _llm_dimensions(rubric)
     principles = _textual_principles(rubric)
     schema = _schema_lines(dims, principles, fields=fields)
-    prior_context = PASS1_LLM_FIELDS if fields == PASS2_LLM_FIELDS else fields
-    prior_text = _prior_block(prior or {}, prior_context)
+    prior_text = _prior_block(prior or {}, _prior_context_fields(fields, pass_mode=pass_mode))
 
     return f"""Analyse this prose passage using the Leech & Short framework.
 
@@ -225,12 +245,23 @@ def assess_detailed(
     rubric_context = ""
     if rubric is not None:
         from tools.style_classification.style_knowledge import build_classification_context
-        rubric_context = build_classification_context(text, rubric=rubric, knowledge_k=2)
+        rubric_context = build_classification_context(
+            text,
+            rubric=rubric,
+            knowledge_k=2,
+            dimension_ids=list(active_fields) if active_fields is not None else None,
+        )
     if not rubric_context.strip():
         rubric_context = "(No rubric reference loaded — apply general literary stylistics.)"
 
     defaults = _defaults(rubric, fields=active_fields)
-    max_tokens = 8192 if active_fields is None else 2048
+    # Smaller field batches need less completion budget
+    if active_fields is None:
+        max_tokens = 8192
+    elif len(active_fields) <= 3:
+        max_tokens = 1024
+    else:
+        max_tokens = 2048
     meta: dict[str, Any] = {"parse_ok": False, "used_defaults": True, "error": None}
 
     try:
@@ -241,6 +272,7 @@ def assess_detailed(
                 rubric_context,
                 fields=active_fields,
                 prior=prior,
+                pass_mode=pass_mode,
             ),
             system=_build_system_prompt(rubric),
             model=model,

@@ -195,25 +195,61 @@ def build_classification_context(
     *,
     rubric: dict[str, Any] | None = None,
     knowledge_k: int = 2,
+    dimension_ids: list[str] | frozenset[str] | None = None,
 ) -> str:
     """Assemble Leech & Short reference context for LLM style classification."""
     rubric = rubric or load_rubric()
-    llm_dims = [
-        d["id"]
-        for d in (rubric or {}).get("dimensions", [])
-        if d.get("computation") == "llm"
-    ] if rubric else [
-        "register", "pov", "narrative_distance", "free_indirect_discourse",
-        "figurative_density", "tone", "temporal_structure",
-        "sentence_variety", "dialogue_style", "imagery_type",
-        "lexical_complexity", "sentence_complexity", "cohesion", "mind_style",
-    ]
+    if dimension_ids is not None:
+        llm_dims = list(dimension_ids)
+    else:
+        llm_dims = [
+            d["id"]
+            for d in (rubric or {}).get("dimensions", [])
+            if d.get("computation") == "llm"
+        ] if rubric else [
+            "register", "pov", "narrative_distance", "free_indirect_discourse",
+            "figurative_density", "tone", "temporal_structure",
+            "sentence_variety", "dialogue_style", "imagery_type",
+            "lexical_complexity", "sentence_complexity", "cohesion", "mind_style",
+        ]
+
+    # Textual principles may be requested as field ids too
+    if dimension_ids is not None and rubric:
+        principle_ids = {
+            p["id"] for p in (rubric.get("textual_principles") or []) if p.get("id")
+        }
+        dim_only = [d for d in llm_dims if d not in principle_ids]
+        principle_only = [d for d in llm_dims if d in principle_ids]
+    else:
+        dim_only = llm_dims
+        principle_only = []
 
     sections: list[str] = []
 
-    rubric_block = rubric_dimension_summary(rubric, llm_dims)
+    rubric_block = rubric_dimension_summary(rubric, dim_only)
     if rubric_block:
         sections.append("## Rubric dimensions\n\n" + rubric_block)
+
+    if principle_only and rubric:
+        by_id = {p["id"]: p for p in (rubric.get("textual_principles") or []) if p.get("id")}
+        principle_lines: list[str] = []
+        for pid in principle_only:
+            p = by_id.get(pid)
+            if not p:
+                continue
+            values = p.get("values")
+            values_str = ""
+            if isinstance(values, list):
+                values_str = f" Allowed: {', '.join(values)}."
+            principle_lines.append(
+                f"- **{pid}** ({p.get('name', pid)}): {p.get('definition', '')}{values_str}"
+            )
+            scoring = p.get("scoring") or {}
+            score_bits = [f"  {level}: {scoring[level]}" for level in ("low", "mid", "high") if level in scoring]
+            if score_bits:
+                principle_lines.append("\n".join(score_bits))
+        if principle_lines:
+            sections.append("## Textual principles\n\n" + "\n".join(principle_lines))
 
     chunks = retrieve(passage, k=knowledge_k)
     if chunks:

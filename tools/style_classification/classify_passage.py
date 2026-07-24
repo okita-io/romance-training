@@ -42,6 +42,7 @@ def classify(
     llm_mode: str = "joint",
     council_meta_out: dict[str, Any] | None = None,
     council_arbitrate: bool = True,
+    field_batch_size: int = 3,
 ) -> dict[str, Any]:
     """
     Return a full style_profile for the given text passage.
@@ -53,12 +54,14 @@ def classify(
         llm_model:      Ollama / LM Studio model name (defaults to LLM_MODEL env).
         pass_mode:      "full" | "fast" | "deep" | "both" — see source/multi-pass.md.
         prior_profile:  Existing style_profile for deep/both merge (pass 1 labels).
-        llm_mode:       "joint" (one JSON call per pass) or "council" (single-metric
+        llm_mode:       "joint" (batched JSON calls) or "council" (single-metric
                         3-judge vote + arbitration per field).
         council_meta_out: When provided and llm_mode="council", populated with the
                         per-field vote breakdown (mutated in place).
         council_arbitrate: When council, invoke the arbitrator on split votes
                         (default True). False falls back to plain majority.
+        field_batch_size: Joint mode only. ``>=3`` uses semantic batches of ≤3
+                        labels; ``0`` = one LLM call per pass (legacy).
 
     Returns:
         Flat dict of all computed metrics.
@@ -67,14 +70,18 @@ def classify(
     from tools.style_classification.metrics_computable import compute
     from tools.style_classification.pass_config import (
         ALL_LLM_FIELDS,
+        DEFAULT_FIELD_BATCH_SIZE,
         PASS1_LLM_FIELDS,
         PassMode,
+        batches_for_pass,
         fields_for_pass,
         pass_complete,
     )
 
     if llm_model is None:
         llm_model = DEFAULT_MODEL
+    if field_batch_size is None:
+        field_batch_size = DEFAULT_FIELD_BATCH_SIZE
 
     mode: PassMode = pass_mode if pass_mode in ("full", "fast", "deep", "both") else "full"
     prior = prior_profile or {}
@@ -99,27 +106,38 @@ def classify(
         from tools.style_classification.metric_council import assess_fields_council
 
     def _get_llm(pass_key: PassMode, prior_fields: dict[str, Any] | None) -> dict[str, Any]:
-        """Fetch LLM fields for one pass via joint or council dispatch."""
-        if not council:
-            return assess(
+        """Fetch LLM fields for one pass via joint (batched) or council dispatch."""
+        if council:
+            fields = fields_for_pass(pass_key) or ALL_LLM_FIELDS
+            partial, meta = assess_fields_council(
+                text,
+                fields,
+                model=llm_model,
+                rubric=rubric,
+                prior=prior_fields,
+                arbitrate_split=council_arbitrate,
+            )
+            if council_meta_out is not None:
+                council_meta_out.update(meta)
+            return partial
+
+        # Joint: one or more small JSON calls (≤3 fields when batching on).
+        merged: dict[str, Any] = {}
+        running_prior = dict(prior_fields or {})
+        for batch in batches_for_pass(pass_key, field_batch_size=field_batch_size):
+            partial = assess(
                 text,
                 model=llm_model,
                 rubric=rubric,
                 pass_mode=pass_key,
-                prior=prior_fields if pass_key == "deep" else None,
+                fields=batch,
+                prior=running_prior if running_prior else None,
             )
-        fields = fields_for_pass(pass_key) or ALL_LLM_FIELDS
-        partial, meta = assess_fields_council(
-            text,
-            fields,
-            model=llm_model,
-            rubric=rubric,
-            prior=prior_fields,
-            arbitrate_split=council_arbitrate,
-        )
-        if council_meta_out is not None:
-            council_meta_out.update(meta)
-        return partial
+            merged.update(partial)
+            for key, val in partial.items():
+                if key != "evidence" and val is not None:
+                    running_prior[key] = val
+        return merged
 
     if mode == "both":
         if prior:
@@ -165,7 +183,14 @@ def _main() -> None:
         dest="llm_mode",
         choices=("joint", "council"),
         default="joint",
-        help="joint = one JSON call per pass; council = single-metric 3-judge vote per field",
+        help="joint = batched JSON calls; council = single-metric 3-judge vote per field",
+    )
+    parser.add_argument(
+        "--field-batch-size",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Joint mode: max labels per LLM call (default 3). 0 = one call per pass",
     )
     parser.add_argument(
         "--no-arbitrate",
@@ -192,6 +217,7 @@ def _main() -> None:
         llm_mode=args.llm_mode,
         council_meta_out=council_meta if args.llm_mode == "council" else None,
         council_arbitrate=args.arbitrate,
+        field_batch_size=args.field_batch_size,
     )
     print(json.dumps(profile, indent=2))
     if council_meta:

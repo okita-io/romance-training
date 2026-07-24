@@ -333,6 +333,8 @@ def cmd_classify_next(args: argparse.Namespace) -> None:
         cmd.append("--no-rechunk")
     if args.quiet:
         cmd.append("--quiet")
+    if getattr(args, "field_batch_size", None) is not None:
+        cmd.extend(["--field-batch-size", str(args.field_batch_size)])
     print("Running:", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)
@@ -490,6 +492,13 @@ def main() -> None:
     p_cls.add_argument("--pass", dest="pass_mode", default="both", choices=("fast", "deep", "full", "both"))
     p_cls.add_argument("--workers", type=int, default=4)
     p_cls.add_argument("--quiet", action="store_true")
+    p_cls.add_argument(
+        "--field-batch-size",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Joint mode: max labels per LLM call (default 3). 0 = one call per pass",
+    )
     p_cls.add_argument(
         "--grain",
         default=None,
