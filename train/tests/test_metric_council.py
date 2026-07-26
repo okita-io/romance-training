@@ -43,6 +43,52 @@ def test_build_judge_prompts_single_key_only() -> None:
     assert isinstance(system, str) and system
 
 
+def test_pov_and_fid_rubric_have_detailed_guides() -> None:
+    from tools.style_classification.classify_passage import load_rubric
+
+    rubric = load_rubric()
+    by_id = {d["id"]: d for d in rubric["dimensions"]}
+    for mid in ("pov", "free_indirect_discourse"):
+        dim = by_id[mid]
+        assert len(dim["definition"]) > 80
+        assert dim.get("analysis_prompt")
+        scoring = dim.get("scoring") or {}
+        for value in dim["values"]:
+            assert value in scoring, f"{mid} missing scoring gloss for {value}"
+
+
+def test_build_judge_prompts_includes_fid_label_guide() -> None:
+    from tools.style_classification.classify_passage import load_rubric
+
+    rubric = load_rubric()
+    metric = mc.resolve_metric("free_indirect_discourse", rubric=rubric)
+    assert metric is not None
+    _, user = mc.build_judge_prompts(
+        metric,
+        "She looked away. Was he lying again?",
+        variant="definition",
+    )
+    assert "Label guide" in user
+    assert "WITHOUT a reporting clause" in user or "reporting" in user.lower()
+    assert "heavy" in user
+
+
+def test_build_arbitrator_prompts_include_pov_guide() -> None:
+    from tools.style_classification.classify_passage import load_rubric
+
+    rubric = load_rubric()
+    metric = mc.resolve_metric("pov", rubric=rubric)
+    votes = [
+        {"variant": "definition", "label": "first_person", "evidence": "I walked"},
+        {"variant": "evidence", "label": "third_limited", "evidence": "she felt"},
+        {"variant": "contrast", "label": "first_person", "evidence": "my hand"},
+    ]
+    _, user = mc.build_arbitrator_prompts(metric, "I walked on. She felt cold.", votes)
+    assert "Label guide" in user
+    assert "third_limited" in user
+    assert "Judge [definition]" in user
+
+
 def test_build_judge_prompts_variants_differ() -> None:
     metric = mc.resolve_metric("tone")
     systems = {

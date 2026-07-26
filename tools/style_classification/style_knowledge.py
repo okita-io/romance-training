@@ -172,9 +172,22 @@ def rubric_dimension_summary(rubric: dict[str, Any] | None, dimension_ids: list[
             continue
         scoring = dim.get("scoring", {})
         score_bits = []
-        for level in ("low", "mid", "high"):
-            if level in scoring:
-                score_bits.append(f"  {level}: {scoring[level]}")
+        # Prefer explicit label glosses when present; fall back to low/mid/high.
+        label_keys = [k for k in scoring.keys() if k not in ("low", "mid", "high")]
+        if label_keys:
+            # Preserve values-list order when possible
+            values = dim.get("values")
+            ordered = list(values) if isinstance(values, list) else label_keys
+            for key in ordered:
+                if key in scoring:
+                    score_bits.append(f"  {key}: {scoring[key]}")
+            for key in label_keys:
+                if key not in ordered:
+                    score_bits.append(f"  {key}: {scoring[key]}")
+        else:
+            for level in ("low", "mid", "high"):
+                if level in scoring:
+                    score_bits.append(f"  {level}: {scoring[level]}")
         values = dim.get("values")
         values_str = ""
         if isinstance(values, list):
@@ -186,6 +199,9 @@ def rubric_dimension_summary(rubric: dict[str, Any] | None, dimension_ids: list[
         )
         if score_bits:
             lines.append("\n".join(score_bits))
+        analysis = dim.get("analysis_prompt")
+        if analysis:
+            lines.append(f"  Goal: {analysis}")
 
     return "\n".join(lines)
 

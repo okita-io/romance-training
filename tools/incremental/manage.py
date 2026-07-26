@@ -335,6 +335,10 @@ def cmd_classify_next(args: argparse.Namespace) -> None:
         cmd.append("--quiet")
     if getattr(args, "field_batch_size", None) is not None:
         cmd.extend(["--field-batch-size", str(args.field_batch_size)])
+    if getattr(args, "llm_mode", None):
+        cmd.extend(["--llm-mode", str(args.llm_mode)])
+    if getattr(args, "council_arbitrate", True) is False:
+        cmd.append("--no-arbitrate")
     print("Running:", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)
@@ -498,6 +502,20 @@ def main() -> None:
         default=3,
         metavar="N",
         help="Joint mode: max labels per LLM call (default 3). 0 = one call per pass",
+    )
+    p_cls.add_argument(
+        "--llm-mode",
+        dest="llm_mode",
+        choices=("joint", "council"),
+        default="joint",
+        help="joint = batched multi-field JSON; council = 3-judge + arbitrator per field",
+    )
+    p_cls.add_argument(
+        "--no-arbitrate",
+        dest="council_arbitrate",
+        action="store_false",
+        default=True,
+        help="Council only: skip arbitrator on split votes (plain majority)",
     )
     p_cls.add_argument(
         "--grain",

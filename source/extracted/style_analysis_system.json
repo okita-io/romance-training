@@ -215,7 +215,8 @@
       "category": "viewpoint",
       "name": "Narrative Point of View",
       "source_section": "5.5.1",
-      "definition": "Grammatical person and access to interiority.",
+      "definition": "Fictional point of view / reflector (Leech & Short 5.5.1): whose model of reality the narrative is limited to, and how grammatical person signals that. Judge the DOMINANT mode of the passage. Quoted dialogue alone does not change POV. Prefer third_limited over third_omniscient unless the narrator clearly knows multiple minds or facts no single character could. Use mixed ONLY when the passage itself switches POV modes (e.g. first then third), not merely when dialogue uses I.",
+      "analysis_prompt": "Who is the reflector? Is the grammatical person first, second, or third? If third, is access limited to one consciousness (limited) or does the narrator freely enter multiple minds / know beyond any character (omniscient)? Choose one allowed label for the dominant mode.",
       "computation": "llm",
       "metric_type": "categorical",
       "values": [
@@ -225,7 +226,13 @@
         "third_omniscient",
         "mixed"
       ],
-      "scoring": {}
+      "scoring": {
+        "first_person": "Narrator is I/we; knowledge and interiority are that of the speaking character (or a narrating I). External description may occur, but the epistemic center is first-person.",
+        "second_person": "You is the protagonist or addressed experiencer of events (not merely vocative you in dialogue).",
+        "third_limited": "He/she/they narration with privileged access mainly to ONE reflector's perceptions, thoughts, or evaluations (center of consciousness). Other minds are observed from outside.",
+        "third_omniscient": "Third-person narrator freely reports multiple characters' private thoughts, or states facts/judgments unavailable to any single character in the scene.",
+        "mixed": "Clear shift between POV modes within THIS passage (e.g. first-person frame then third-person scene). Do not use for ordinary dialogue inside an otherwise stable POV."
+      }
     },
     {
       "id": "narrative_distance",
@@ -250,7 +257,8 @@
       "category": "viewpoint",
       "name": "Free Indirect Discourse",
       "source_section": "10.1.4",
-      "definition": "Blending of narrator and character voice.",
+      "definition": "Free indirect discourse / free indirect thought (Leech & Short ch. 10): narrator wording that takes on a character's idiom, evaluations, questions, or exclamations WITHOUT a reporting clause (she thought / he wondered that...). Classic FID is mainly a third-person effect. Direct speech in quotes is NOT FID. Tagged indirect thought ('she thought that it was hopeless') is NOT FID. In first-person passages, prefer none unless the narrating voice clearly slips into a freer represented-thought style distinct from ordinary I-narration. Do NOT default to none when third-person narrative clearly carries character diction; do NOT default to heavy for a single exclamation.",
+      "analysis_prompt": "Does third-person (or other) narration blend with a character's voice without reporting verbs? Estimate how much of the passage is in that blended mode: none, sparse, moderate, or heavy. Cite the strongest cue.",
       "computation": "llm",
       "metric_type": "ordinal",
       "values": [
@@ -259,7 +267,12 @@
         "moderate",
         "heavy"
       ],
-      "scoring": {}
+      "scoring": {
+        "none": "No FID: narration stays in narrator register, and/or thoughts/speech are only in quotes or with explicit reporting verbs (said, thought, wondered that...). First-person plain narration usually belongs here.",
+        "sparse": "One or two brief slips of character idiom, evaluative adjectives, or free questions/exclamations into otherwise narrator-led prose.",
+        "moderate": "Recurring free-indirect stretches; several sentences take the character's wording/attitude without tags, interleaved with ordinary narration.",
+        "heavy": "FID (or free indirect thought) dominates: long stretches where narrator and character voice fuse; character questions, deictics, and evaluations run through the narrative fabric."
+      }
     },
     {
       "id": "tone",

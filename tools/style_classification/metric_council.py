@@ -102,6 +102,7 @@ def _metric_specs(rubric: dict | None = None) -> dict[str, dict[str, Any]]:
             "name": entry.get("name", mid),
             "definition": entry.get("definition", ""),
             "analysis_prompt": entry.get("analysis_prompt", ""),
+            "scoring": dict(entry.get("scoring") or {}),
             "values": list(values),
         }
 
@@ -140,13 +141,23 @@ def build_judge_prompts(
     allowed = ", ".join(json.dumps(v) for v in values)
     goal = metric.get("analysis_prompt") or metric.get("definition") or f"Classify {mid}."
 
+    scoring = metric.get("scoring") or {}
+    scoring_block = ""
+    if scoring:
+        # Prefer per-label glosses; otherwise low/mid/high
+        label_keys = [k for k in scoring if k not in ("low", "mid", "high")]
+        keys = [v for v in values if v in scoring] if label_keys else ["low", "mid", "high"]
+        bits = [f"  - {k}: {scoring[k]}" for k in keys if k in scoring]
+        if bits:
+            scoring_block = "Label guide:\n" + "\n".join(bits) + "\n"
+
     knowledge_block = f"\nReference (Leech & Short):\n{knowledge.strip()}\n" if knowledge.strip() else ""
 
     user = f"""Metric: {metric.get('name', mid)} ({mid})
 Definition: {metric.get('definition', '')}
 Goal: {goal}
 Allowed labels: [{allowed}]
-{knowledge_block}
+{scoring_block}{knowledge_block}
 Judge ONLY this metric for the passage below. Return JSON with exactly these keys:
 {{"{mid}": one of [{allowed}], "evidence": "<short quote or phrase from the passage>"}}
 
@@ -290,10 +301,19 @@ def build_arbitrator_prompts(
 
     knowledge_block = f"\nReference (Leech & Short):\n{knowledge.strip()}\n" if knowledge.strip() else ""
 
+    scoring = metric.get("scoring") or {}
+    scoring_block = ""
+    if scoring:
+        label_keys = [k for k in scoring if k not in ("low", "mid", "high")]
+        keys = [v for v in values if v in scoring] if label_keys else ["low", "mid", "high"]
+        bits = [f"  - {k}: {scoring[k]}" for k in keys if k in scoring]
+        if bits:
+            scoring_block = "Label guide:\n" + "\n".join(bits) + "\n"
+
     user = f"""Metric: {metric.get('name', mid)} ({mid})
 Definition: {metric.get('definition', '')}
 Allowed labels: [{allowed}]
-{knowledge_block}
+{scoring_block}{knowledge_block}
 Three junior judges reviewed the passage for this metric:
 {judges_block}
 
