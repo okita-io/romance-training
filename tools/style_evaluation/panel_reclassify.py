@@ -243,6 +243,9 @@ def _completed_span_ids(path: Path) -> set[str]:
             if span_id:
                 done.add(str(span_id))
     return done
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     ap.add_argument("--out", type=Path, default=None)
