@@ -76,6 +76,31 @@ _VERSE_STANZA_RE = re.compile(
     re.IGNORECASE,
 )
 _THE_END_RE = re.compile(r"\bTHE END\.?\b", re.IGNORECASE)
+_FOOTNOTE_RE = re.compile(r"\[Footnote\s+\d+|^\s*FOOTNOTES\b", re.IGNORECASE | re.MULTILINE)
+_CREDIT_RE = re.compile(
+    r"\bAll rights reserved\b|"
+    r"\bImages:\s*Google\b|"
+    r"\bText:\s+[A-Z][\w.'-]+(?:\s+[A-Z][\w.'-]+)+\s+Images:",
+    re.IGNORECASE,
+)
+_BOOK_META_RE = re.compile(
+    r"\bBook Name\s*\(|"
+    r"\b(?:THE\s+[A-Z][A-Z0-9 ',-]{4,48})\s+Pg\s+\d+"
+)
+_SLUGLINE_RE = re.compile(
+    r"(?:^|\n)\s*\d+\.\.\s*\([^)\n]{0,48}\)\s+[A-Z][A-Z0-9 .,'-]{8,}"
+)
+_RULE_RE = re.compile(r"(?:-{24,}|_{24,}|={24,})")
+_TECHNICAL_RE = re.compile(
+    r"\bB\.\s*t\.\s*u\.|"
+    r"\bdegrees Fahrenheit\b|"
+    r"\bCH_\{\d\}|"
+    r"\bTable\s+\d+\s+gives\b|"
+    r"\bthermo-dynamics\b|"
+    r"\bnet efficiency\s*=",
+    re.IGNORECASE,
+)
+_STAGE_DIR_RE = re.compile(r"\[_?(?:Exeunt|Exit|Enter)[^\]]*\]", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -145,6 +170,31 @@ def classify_chunk_prose(text: str, *, min_words: int = 30) -> ProseQuality:
     narrative_ratio = _narrative_line_ratio(lines)
     narrative_words = _narrative_word_ratio(text)
     catalog_ratio = _catalog_line_ratio(lines)
+
+    if _FOOTNOTE_RE.search(text):
+        return ProseQuality("non_prose", "footnotes", narrative_ratio, narrative_words, ("footnotes",))
+    if _CREDIT_RE.search(text):
+        return ProseQuality("non_prose", "credits", narrative_ratio, narrative_words, ("credits",))
+    if _BOOK_META_RE.search(text):
+        return ProseQuality(
+            "non_prose", "metadata_bleed", narrative_ratio, narrative_words, ("book_meta",)
+        )
+    if _SLUGLINE_RE.search(text) and _RULE_RE.search(text):
+        return ProseQuality(
+            "non_prose",
+            "screenplay_slugline",
+            narrative_ratio,
+            narrative_words,
+            ("slugline",),
+        )
+    if _TECHNICAL_RE.search(text):
+        return ProseQuality(
+            "non_prose", "technical_nonfiction", narrative_ratio, narrative_words, ("technical",)
+        )
+    if len(_STAGE_DIR_RE.findall(text)) >= 3:
+        return ProseQuality(
+            "non_prose", "drama_script", narrative_ratio, narrative_words, ("stage_directions",)
+        )
 
     # Structural back matter — reject even when narrative_word_ratio is high.
     errata_rows = _errata_row_count(text)

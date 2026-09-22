@@ -72,3 +72,22 @@ def test_pick_spans_stratifies(tmp_path: Path) -> None:
     assert len(spans) == 2
     assert stats["kept"] == 2
     assert all(len(s["text"]) <= KEV_STATE_CHARS for s in spans)
+
+
+def test_pick_spans_drops_glyph_dumps(tmp_path: Path) -> None:
+    from tools.data_preparation.pick_kev_spans import span_reject_reason
+
+    glyphs = ("ꔆ꘢ꗛ ꘜ꘩ ꖉꘐ ꕠꔈ ꔳꘋꗠ " * 40).strip()
+    assert span_reject_reason(glyphs, min_words=20) == "non_latin_script"
+    path = tmp_path / "fantasy_books_korshuk_styled_seg_000.jsonl"
+    path.write_text(
+        json.dumps({"text": glyphs, "metadata": {"title": "Noise"}}) + "\n"
+        + json.dumps({"text": LONG, "metadata": {"title": "Story"}}) + "\n",
+        encoding="utf-8",
+    )
+    spans, stats = pick_spans(
+        [path], n=1, seed=1, max_chars=KEV_STATE_CHARS, min_words=20
+    )
+    assert len(spans) == 1
+    assert "ꔆ" not in spans[0]["text"]
+    assert span_reject_reason(spans[0]["text"], min_words=20) is None

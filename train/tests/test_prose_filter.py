@@ -122,3 +122,52 @@ def test_verse_stanza_appendix_rejected() -> None:
     q = classify_chunk_prose(VERSE_APPENDIX)
     assert q.verdict == "non_prose"
     assert q.reason == "verse_appendix"
+
+
+FOOTNOTE_CHUNK = """\
+[Footnote 38: See "Steam Boiler Economy", page 47, First Edition.]
+[Footnote 39: To agree with Pfaundler's formula the end ordinates
+should be given half values in determining T.]
+FOOTNOTES Pg 16 [Footnote 42: Assuming bagasse temperature = 80 degrees
+Fahrenheit and exit gas temperature = 500 degrees Fahrenheit.]
+"""
+
+CREDITS_CHUNK = """\
+The pack lifted their heads and gave a long howl to the moon, then
+everybody whipped past Jake and Seth on all fours, full of energy due
+to the full moon. Seth turned to Jake and gave a sly smile. Jake then
+started running at inhuman speed. Text: Sara Imes Images: Google
+Editing: Sara Imes All rights reserved.
+"""
+
+SLUGLINE_CHUNK = """\
+He jerked Kelli forward, causing her to gasp, her head tilting back.
+"Blow really," her Assistant playfully mocked her as his other hand
+opened the dressing room door.
+
+5.. (12;47 AM) BACK INSIDE THE LUXURIOUS LIMO - Moment Of Truth
+
+-----------------------------------------------------------------------------------------------------------
+
+"Well? A deal's deal, right?" The way his words were both condescending
+and somehow at the same time a taunt tinged in celebration of both how
+it was obvious Kelli had delivered the best reaction from an audience.
+"""
+
+
+def test_footnote_dump_rejected() -> None:
+    q = classify_chunk_prose(FOOTNOTE_CHUNK)
+    assert q.verdict == "non_prose"
+    assert q.reason == "footnotes"
+
+
+def test_image_credits_rejected() -> None:
+    q = classify_chunk_prose(CREDITS_CHUNK)
+    assert q.verdict == "non_prose"
+    assert q.reason == "credits"
+
+
+def test_screenplay_slugline_rejected() -> None:
+    q = classify_chunk_prose(SLUGLINE_CHUNK)
+    assert q.verdict == "non_prose"
+    assert q.reason == "screenplay_slugline"

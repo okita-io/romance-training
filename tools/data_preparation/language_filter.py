@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Literal
 
 # Scripts outside Latin extended range used in English prose.
@@ -13,8 +14,15 @@ _NON_LATIN_SCRIPT = re.compile(
     r"\u4E00-\u9FFF"    # CJK
     r"\u0E00-\u0E7F"    # Thai
     r"\u0590-\u05FF"    # Hebrew
+    r"\uA500-\uA63F"    # Vai
+    r"\U00010000-\U0001007F"  # Linear B syllabary
+    r"\U00010080-\U000100FF"  # Linear B ideograms
+    r"\U00010380-\U0001039F"  # Ugaritic
+    r"\U00012000-\U000123FF"  # Cuneiform
+    r"\U00013000-\U0001342F"  # Egyptian hieroglyphs
     r"]"
 )
+_MIN_LATIN_LETTER_RATIO = 0.85
 
 _COMMON_EN = re.compile(
     r"\b(the|and|to|of|a|in|that|it|was|for|on|is|with|as|he|she|you|her|his|not|but|"
@@ -23,8 +31,24 @@ _COMMON_EN = re.compile(
 )
 
 
+def latin_letter_ratio(text: str, *, sample_chars: int = 3000) -> float:
+    """Share of alphabetic characters whose Unicode name is Latin."""
+    letters = [c for c in text[:sample_chars] if c.isalpha()]
+    if not letters:
+        return 0.0
+    latin = 0
+    for char in letters:
+        name = unicodedata.name(char, "")
+        if name.startswith("LATIN "):
+            latin += 1
+    return latin / len(letters)
+
+
 def has_non_latin_script(text: str, *, sample_chars: int = 3000) -> bool:
-    return bool(_NON_LATIN_SCRIPT.search(text[:sample_chars]))
+    sample = text[:sample_chars]
+    if _NON_LATIN_SCRIPT.search(sample):
+        return True
+    return latin_letter_ratio(sample, sample_chars=sample_chars) < _MIN_LATIN_LETTER_RATIO
 
 
 def english_word_ratio(text: str, *, max_words: int = 500) -> float:

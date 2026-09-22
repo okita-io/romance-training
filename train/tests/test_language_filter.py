@@ -41,3 +41,15 @@ def test_hindi_rejected() -> None:
 
 def test_spanish_rejected() -> None:
     assert not is_english_text(SPANISH)
+
+
+VAI = "ꔆ꘢ꗛ ꘜ꘩ ꖉꘐ ꕠꔈ ꔳꘋꗠ ꗯꕩꖜ ꔫꔉꔚ ꖔꕙꘜ ꔱꕲꗇ ꕮꗷꔑ"
+UGARITIC = "𐎂𐎋𐎟𐎘 𐎁𐎝𐎓𐎉 𐎊𐎑𐎆𐎖 𐎛𐎋𐎑𐎒 𐎈𐎆𐎁𐎇 𐎐𐎊𐎍𐎖"
+
+
+def test_ancient_and_syllabic_scripts_rejected() -> None:
+    assert has_non_latin_script(VAI)
+    assert has_non_latin_script(UGARITIC)
+    assert classify_language(VAI) == "non_en"
+    assert classify_language(UGARITIC) == "non_en"
+    assert not is_english_text(VAI)

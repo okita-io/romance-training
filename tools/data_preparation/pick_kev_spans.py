@@ -6,6 +6,9 @@ Picks random passages from ``*_styled_seg_*.jsonl``, then cuts a sentence-
 bounded window that fits Jev/Kev's 384-token training state (~1400 chars).
 Old style_profile labels are dropped: a subset span is not the same object.
 
+Glyph dumps, footnotes, credits, screenplay sluglines, and other non-narrative
+chunks are skipped so the mix stays English prose.
+
 Usage:
     python tools/data_preparation/pick_kev_spans.py --n 80
     python tools/data_preparation/pick_kev_spans.py --n 80 --report-only
@@ -27,6 +30,11 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from tools.data_preparation.language_filter import (  # noqa: E402
+    english_word_ratio,
+    has_non_latin_script,
+)
+from tools.data_preparation.prose_filter import classify_chunk_prose  # noqa: E402
 from tools.style_classification.chunk_text import (  # noqa: E402
     KEV_MIN_WORDS,
     KEV_STATE_CHARS,
@@ -60,7 +68,26 @@ def corpus_slug(path: Path) -> str:
 
 
 def _text_ok(text: str, min_words: int) -> bool:
-    return len((text or "").split()) >= min_words
+    return span_reject_reason(text, min_words=min_words) is None
+
+
+def span_reject_reason(text: str, *, min_words: int) -> str | None:
+    """Return a drop reason, or None if the span looks like English narrative."""
+    raw = (text or "").strip()
+    if not raw:
+        return "too_short"
+    if len(raw) > 50_000:
+        return "unbounded_dump"
+    if len(raw.split()) < min_words:
+        return "too_short"
+    if has_non_latin_script(raw):
+        return "non_latin_script"
+    if english_word_ratio(raw) < 0.04:
+        return "non_english"
+    prose = classify_chunk_prose(raw, min_words=min_words)
+    if prose.verdict != "prose":
+        return prose.reason or "non_prose"
+    return None
 
 
 def reservoir_sample(
@@ -145,7 +172,7 @@ def pick_spans(
     per_file = max(1, (n + len(paths) - 1) // len(paths))
     pool: list[tuple[Path, dict[str, Any]]] = []
     for path in paths:
-        drawn = reservoir_sample(path, per_file * 2, rng, min_words=min_words)
+        drawn = reservoir_sample(path, per_file * 6, rng, min_words=min_words)
         rng.shuffle(drawn)
         for record in drawn:
             pool.append((path, record))
@@ -156,6 +183,7 @@ def pick_spans(
     by_corpus: Counter[str] = Counter()
     truncated = 0
     skipped_short = 0
+    skipped_vet: Counter[str] = Counter()
     for path, record in pool:
         if len(kept) >= n:
             break
@@ -170,6 +198,10 @@ def pick_spans(
         )
         if span is None:
             skipped_short += 1
+            continue
+        reason = span_reject_reason(span["text"], min_words=min_words)
+        if reason:
+            skipped_vet[reason] += 1
             continue
         key = span["metadata"]["span_id"]
         if key in seen:
@@ -186,6 +218,7 @@ def pick_spans(
         "kept": len(kept),
         "truncated": truncated,
         "skipped_short": skipped_short,
+        "skipped_vet": dict(skipped_vet),
         "by_corpus": dict(by_corpus),
         "max_chars": max_chars,
         "min_words": min_words,
@@ -230,6 +263,11 @@ def main(argv: list[str] | None = None) -> int:
         f"truncated {stats['truncated']}; max {stats['char_max']} chars; "
         f"mean {stats['word_mean']} words"
     )
+    if stats.get("skipped_vet"):
+        dropped = ", ".join(
+            f"{reason}={count}" for reason, count in sorted(stats["skipped_vet"].items())
+        )
+        print(f"  dropped by vet: {dropped}")
     for slug, count in sorted(stats["by_corpus"].items(), key=lambda kv: (-kv[1], kv[0])):
         print(f"  {slug}: {count}")
     if args.report_only:
