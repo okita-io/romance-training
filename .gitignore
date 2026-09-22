@@ -59,3 +59,5 @@ source-data/processed/
 # Eval / style benchmark run outputs
 eval/bakeoff_5a/results/
 eval/style_benchmark/results/
+eval/openrouter_audit/*/
+

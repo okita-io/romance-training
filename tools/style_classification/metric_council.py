@@ -17,6 +17,8 @@ Public API:
   build_judge_prompts(metric, text, variant) -> (system, user)
   judge_once(metric, text, variant, ...)     -> vote dict
   council_vote(votes)                        -> {value, agree_n, consensus, votes}
+  vote_weight(params_b, mode)                -> float
+  weighted_council_vote(votes)               -> {value, weight_share, consensus, votes}
   build_arbitrator_prompts(metric, text, votes) -> (system, user)
   arbitrate(metric, text, votes, ...)        -> {value, rationale, parse_ok, error}
   assess_metric_council(text, field, ...)    -> (label | None, meta)
@@ -26,6 +28,7 @@ Public API:
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from functools import lru_cache
@@ -263,6 +266,73 @@ def council_vote(votes: list[dict[str, Any]]) -> dict[str, Any]:
         "agree_n": agree_n,
         "consensus": value is not None,
         "parse_ok": any(v.get("parse_ok") for v in votes),
+        "votes": votes,
+    }
+
+
+def vote_weight(params_b: float, mode: str = "log") -> float:
+    """Map a parameter count to a council vote weight.
+
+    ``log`` (default) keeps a 550B teacher from erasing two 27B locals.
+    ``linear`` is raw billions. ``equal`` ignores size.
+    """
+    if mode == "equal":
+        return 1.0
+    size = max(float(params_b or 0.0), 0.0)
+    if size <= 0:
+        return 1.0
+    if mode == "linear":
+        return size
+    return math.log2(size + 1.0)
+
+
+def weighted_council_vote(
+    votes: list[dict[str, Any]],
+    *,
+    min_share: float = 0.5,
+    min_voters: int = 2,
+) -> dict[str, Any]:
+    """Combine labelled votes with per-voter ``weight`` (defaults to 1).
+
+    Consensus requires at least ``min_voters`` valid labels and a unique
+    winner whose share of total weight is >= ``min_share``.
+    """
+    tallies: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    total = 0.0
+    n_valid = 0
+    for vote in votes:
+        label = vote.get("label")
+        if not isinstance(label, str) or not label:
+            continue
+        weight = float(vote.get("weight") or 1.0)
+        if weight <= 0:
+            continue
+        tallies[label] = tallies.get(label, 0.0) + weight
+        counts[label] = counts.get(label, 0) + 1
+        total += weight
+        n_valid += 1
+
+    value: str | None = None
+    agree_n = 0
+    share = 0.0
+    if tallies and total > 0:
+        top_label, top_w = max(tallies.items(), key=lambda kv: kv[1])
+        tied = sum(1 for w in tallies.values() if abs(w - top_w) < 1e-9)
+        share = top_w / total
+        if n_valid >= min_voters and tied == 1 and share >= min_share:
+            value = top_label
+            agree_n = counts[top_label]
+
+    return {
+        "value": value,
+        "agree_n": agree_n,
+        "weight_share": round(share, 4) if total else 0.0,
+        "weight_total": round(total, 4),
+        "weight_by_label": {k: round(v, 4) for k, v in sorted(tallies.items())},
+        "consensus": value is not None,
+        "parse_ok": any(v.get("parse_ok") for v in votes),
+        "n_valid": n_valid,
         "votes": votes,
     }
 

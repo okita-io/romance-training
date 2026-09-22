@@ -146,6 +146,42 @@ def test_council_vote_parse_ok_propagates() -> None:
     assert result["value"] is None
 
 
+def _wvote(label, weight, parse_ok=True):
+    return {"label": label, "weight": weight, "parse_ok": parse_ok}
+
+
+def test_log_weight_two_27b_outrank_550b() -> None:
+    w27 = mc.vote_weight(27, "log")
+    w550 = mc.vote_weight(550, "log")
+    result = mc.weighted_council_vote(
+        [
+            _wvote("comedic", w27),
+            _wvote("comedic", w27),
+            _wvote("melancholic", w550),
+        ]
+    )
+    assert result["value"] == "comedic"
+    assert result["consensus"] is True
+    assert w27 * 2 > w550
+
+
+def test_linear_weight_550b_outranks_two_27b() -> None:
+    result = mc.weighted_council_vote(
+        [
+            _wvote("comedic", mc.vote_weight(27, "linear")),
+            _wvote("comedic", mc.vote_weight(27, "linear")),
+            _wvote("melancholic", mc.vote_weight(550, "linear")),
+        ]
+    )
+    assert result["value"] == "melancholic"
+
+
+def test_weighted_vote_requires_two_voters() -> None:
+    result = mc.weighted_council_vote([_wvote("comedic", 9.1)])
+    assert result["consensus"] is False
+    assert result["n_valid"] == 1
+
+
 # ---------------------------------------------------------------------------
 # judge_once — label validation
 # ---------------------------------------------------------------------------

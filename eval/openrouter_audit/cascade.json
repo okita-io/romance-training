@@ -1,0 +1,141 @@
+{
+  "fetched_at": "2026-09-22T05:21:44.511120+00:00",
+  "n_catalog": 445,
+  "cascade": [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "qwen/qwen3.8-27b:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "liquid/lfm-2.5-2.6b:free",
+    "dots-studio/dots-3-note-preview:free",
+    "inclusionai/ling-3.0-flash-fin:free",
+    "inclusionai/ling-3.0-flash-sante:free",
+    "inclusionai/ling-3.0-flash-vl:free",
+    "nex-agi/nex-n2.5-mini:free",
+    "nex-agi/nex-n2.5-pro:free",
+    "poolside/laguna-s-2.1:free",
+    "poolside/laguna-xs-2.1:free",
+    "cohere/north-mini-code:free",
+    "openrouter/free",
+    "z-ai/glm-5.2:free"
+  ],
+  "models": [
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "params_b": 550.0,
+      "context_length": 1000000,
+      "name": "NVIDIA: Nemotron 3 Ultra (free)"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "params_b": 120.0,
+      "context_length": 262144,
+      "name": "NVIDIA: Nemotron 3 Super (free)"
+    },
+    {
+      "id": "google/gemma-4-31b-it:free",
+      "params_b": 31.0,
+      "context_length": 262144,
+      "name": "Google: Gemma 4 31B (free)"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-lightning:free",
+      "params_b": 30.0,
+      "context_length": 1000000,
+      "name": "NVIDIA: Nemotron 3.5 Lightning (free)"
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "params_b": 30.0,
+      "context_length": 256000,
+      "name": "NVIDIA: Nemotron 3 Nano Omni (free)"
+    },
+    {
+      "id": "qwen/qwen3.8-27b:free",
+      "params_b": 27.0,
+      "context_length": 262144,
+      "name": "Qwen: Qwen3.8 27B (free)"
+    },
+    {
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "params_b": 26.0,
+      "context_length": 262144,
+      "name": "Google: Gemma 4 26B A4B  (free)"
+    },
+    {
+      "id": "liquid/lfm-2.5-2.6b:free",
+      "params_b": 2.6,
+      "context_length": 65536,
+      "name": "LiquidAI: LFM2.5-2.6B (free)"
+    },
+    {
+      "id": "dots-studio/dots-3-note-preview:free",
+      "params_b": 0.0,
+      "context_length": 512000,
+      "name": "Dots Studio: Dots3-Note Preview (free)"
+    },
+    {
+      "id": "inclusionai/ling-3.0-flash-fin:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "inclusionAI: Ling 3.0 Flash Fin (free)"
+    },
+    {
+      "id": "inclusionai/ling-3.0-flash-sante:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "inclusionAI: Ling 3.0 Flash Sante (free)"
+    },
+    {
+      "id": "inclusionai/ling-3.0-flash-vl:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "inclusionAI: Ling 3.0 Flash VL (free)"
+    },
+    {
+      "id": "nex-agi/nex-n2.5-mini:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "Nex AGI: Nex-N2.5-Mini (free)"
+    },
+    {
+      "id": "nex-agi/nex-n2.5-pro:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "Nex AGI: Nex-N2.5-Pro (free)"
+    },
+    {
+      "id": "poolside/laguna-s-2.1:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "Poolside: Laguna S 2.1 (free)"
+    },
+    {
+      "id": "poolside/laguna-xs-2.1:free",
+      "params_b": 0.0,
+      "context_length": 262144,
+      "name": "Poolside: Laguna XS 2.1 (free)"
+    },
+    {
+      "id": "cohere/north-mini-code:free",
+      "params_b": 0.0,
+      "context_length": 256000,
+      "name": "Cohere: North Mini Code (free)"
+    },
+    {
+      "id": "openrouter/free",
+      "params_b": 0.0,
+      "context_length": 200000,
+      "name": "Free Models Router"
+    },
+    {
+      "id": "z-ai/glm-5.2:free",
+      "params_b": 0.0,
+      "context_length": 32768,
+      "name": "Z.ai: GLM 5.2 (free)"
+    }
+  ]
+}

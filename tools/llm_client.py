@@ -33,20 +33,18 @@ from typing import Any
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _load_repo_dotenv() -> None:
-    """Load repo-root .env if present (does not override existing env vars)."""
-    env_path = _REPO_ROOT / ".env"
-    if not env_path.is_file():
-        return
-    try:
-        from dotenv import load_dotenv
-        load_dotenv(env_path)
-        return
-    except ImportError:
-        pass
+def _dotenv_paths() -> list[Path]:
+    """Repo, train/, and ~/train .env files. First wins; later files fill gaps."""
+    return [
+        _REPO_ROOT / ".env",
+        _REPO_ROOT / "train" / ".env",
+        Path.home() / "train" / ".env",
+    ]
 
-    # Minimal fallback when python-dotenv is not installed.
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
+
+def _parse_dotenv(path: Path) -> None:
+    """Load KEY=value lines without overriding existing environment variables."""
+    for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -64,6 +62,26 @@ def _load_repo_dotenv() -> None:
             elif "\t#" in value:
                 value = value.split("\t#", 1)[0].rstrip()
         os.environ[key] = value
+
+
+def _load_repo_dotenv() -> None:
+    """Load project .env files if present (does not override existing env vars)."""
+    paths = [p for p in _dotenv_paths() if p.is_file()]
+    if not paths:
+        return
+    try:
+        from dotenv import load_dotenv
+        for env_path in paths:
+            load_dotenv(env_path, override=False)
+    except ImportError:
+        for env_path in paths:
+            _parse_dotenv(env_path)
+
+    # train/.env on this Spark uses OPEN_ROUTER_KEY.
+    if not (os.environ.get("OPENROUTER_API_KEY") or "").strip():
+        alias = (os.environ.get("OPEN_ROUTER_KEY") or "").strip()
+        if alias:
+            os.environ["OPENROUTER_API_KEY"] = alias
 
 
 _load_repo_dotenv()
@@ -130,13 +148,18 @@ def is_openrouter(base_url: str) -> bool:
 
 
 def openrouter_api_key() -> str:
-    key = (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("LLM_API_KEY") or "").strip()
-    if not key:
-        raise LLMError(
-            "OPENROUTER_API_KEY is required for OpenRouter.\n"
-            "Get a key at https://openrouter.ai/keys and export OPENROUTER_API_KEY=sk-or-..."
-        )
-    return key
+    """Resolve the OpenRouter key. Do not fall back to LM Studio's LLM_API_KEY."""
+    for name in ("OPENROUTER_API_KEY", "OPEN_ROUTER_KEY"):
+        key = (os.environ.get(name) or "").strip()
+        if key:
+            return key
+    lm = (os.environ.get("LLM_API_KEY") or "").strip()
+    if lm.startswith("sk-or-"):
+        return lm
+    raise LLMError(
+        "OPENROUTER_API_KEY (or OPEN_ROUTER_KEY) is required for OpenRouter.\n"
+        "Get a key at https://openrouter.ai/keys and put it in train/.env"
+    )
 
 
 def openrouter_headers() -> dict[str, str]:
@@ -219,6 +242,14 @@ def _chat_completion(
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read())
+            if isinstance(body, dict) and body.get("error"):
+                err = body["error"]
+                if isinstance(err, dict):
+                    code = err.get("code") or 502
+                    detail = str(err.get("message") or err)[:400]
+                else:
+                    code, detail = 502, str(err)[:400]
+                raise LLMError(f"HTTP {code} from {url}: {detail}")
             return _extract_assistant_text(body)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode()[:400]

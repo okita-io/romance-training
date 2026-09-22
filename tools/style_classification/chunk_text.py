@@ -10,6 +10,10 @@ _SENT_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z"\'])')
 Grain = Literal["sentence", "span", "act"]
 GRAINS: tuple[Grain, ...] = ("sentence", "span", "act")
 
+# Kev / Jev training state budget (~384 English tokens).
+KEV_STATE_CHARS = 1400
+KEV_MIN_WORDS = 80
+
 
 def split_sentences(text: str) -> list[str]:
     """Split prose into sentences; keeps fragments when boundaries are unclear."""
@@ -24,6 +28,57 @@ def split_sentences(text: str) -> list[str]:
 
 def _word_count(text: str) -> int:
     return len(text.split())
+
+
+def take_char_window(
+    sentences: list[str],
+    start: int,
+    *,
+    max_chars: int = KEV_STATE_CHARS,
+) -> str:
+    """Take complete sentences from ``start`` until ``max_chars``."""
+    kept: list[str] = []
+    size = 0
+    for sent in sentences[start:]:
+        extra = len(sent) if not kept else len(sent) + 1
+        if kept and size + extra > max_chars:
+            break
+        if not kept and extra > max_chars:
+            return sent[: max_chars - 1].rstrip() + "…"
+        kept.append(sent)
+        size += extra
+    return " ".join(kept).strip()
+
+
+def random_kev_span(
+    text: str,
+    rng,
+    *,
+    max_chars: int = KEV_STATE_CHARS,
+    min_words: int = KEV_MIN_WORDS,
+) -> tuple[str, bool]:
+    """
+    Return a sentence-bounded span that fits Kev's training state.
+
+    If the whole passage already fits, it is returned unchanged. Otherwise a
+    random sentence start is tried until the window has at least ``min_words``.
+    """
+    text = (text or "").strip()
+    if not text:
+        return "", False
+    if len(text) <= max_chars:
+        return text, False
+    sentences = split_sentences(text)
+    if not sentences:
+        return text[: max_chars - 1].rstrip() + "…", True
+    starts = list(range(len(sentences)))
+    rng.shuffle(starts)
+    fallback = take_char_window(sentences, 0, max_chars=max_chars)
+    for start in starts:
+        chunk = take_char_window(sentences, start, max_chars=max_chars)
+        if chunk and _word_count(chunk) >= min_words:
+            return chunk, True
+    return fallback, True
 
 
 def chunk_by_sentences(
